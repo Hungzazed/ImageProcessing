@@ -21,16 +21,27 @@ export class ResizeStage extends Stage {
 
     const resizeOptions = context.options.resize;
 
-    // Use options if provided, otherwise use defaults
-    const width = resizeOptions?.width || env.defaultWidth;
-    const height = resizeOptions?.height || env.defaultHeight;
-    const fit = resizeOptions?.fit || "inside";
+    // Lấy kích thước gốc
+    const originalMeta = await context.sharpInstance.metadata();
+    const originalWidth = originalMeta.width!;
+    const originalHeight = originalMeta.height!;
+
+    // Không truyền gì → giữ nguyên
+    if (!resizeOptions?.width && !resizeOptions?.height) {
+      context.metadata.width = originalWidth;
+      context.metadata.height = originalHeight;
+      return context;
+    }
+
+    // Truyền 1 → lấy chiều còn lại từ ảnh gốc
+    const width = resizeOptions.width || originalWidth;
+    const height = resizeOptions.height || originalHeight;
+    const fit = resizeOptions.fit || "cover";
 
     context.sharpInstance = context.sharpInstance.resize({
       width,
       height,
       fit,
-      withoutEnlargement: true,
     });
 
     // ✅ Materialize buffer để lấy kích thước THỰC TẾ sau resize
