@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Image Processing Service - Upload, resize, filter, watermark and compress images with Pipeline Architecture">
+  <title>Image Processing Service</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🖼️</text></svg>">
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header__icon">🖼️</div>
+    <h1 class="header__title">Image Processing</h1>
+    <p class="header__subtitle">Upload, transform & optimize your images with pipeline architecture</p>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Left Column: Upload + Options -->
+    <div class="left-column">
+
+      <!-- Upload Card -->
+      <div class="card" style="margin-bottom: 32px;">
+        <div class="card__title">
+          <span class="card__title-icon">📤</span>
+          Upload Image
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-area__icon">☁️</div>
+          <p class="upload-area__text">Drag & drop your image here</p>
+          <p class="upload-area__hint">Supports: JPEG, PNG, WebP, GIF • Max 10MB</p>
+          <button class="upload-area__btn" id="selectBtn">
+            📁 Choose File
+          </button>
+          <input type="file" id="fileInput" accept="image/jpeg,image/png,image/webp,image/gif">
+        </div>
+
+        <!-- Preview -->
+        <div class="preview" id="previewContainer">
+          <button class="preview__remove" id="removeBtn" title="Remove">✕</button>
+          <img id="previewImage" src="" alt="Preview">
+          <div class="preview__info">
+            <span id="fileName">filename.jpg</span>
+            <span id="fileSize">0 KB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Options Card -->
+      <div class="card">
+        <div class="card__title">
+          <span class="card__title-icon">⚙️</span>
+          Processing Options
+        </div>
+
+        <!-- Resize -->
+        <div class="form-group">
+          <label class="form-label">Resize</label>
+          <div class="form-row">
+            <input type="number" class="form-input" id="inputWidth" placeholder="Width (px)" min="1" max="10000">
+            <input type="number" class="form-input" id="inputHeight" placeholder="Height (px)" min="1" max="10000">
+          </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="form-group">
+          <label class="form-label">Filter</label>
+          <div class="filter-chips" id="filterChips">
+            <button class="filter-chip" data-filter="none">None</button>
+            <button class="filter-chip" data-filter="grayscale">🌑 Grayscale</button>
+            <button class="filter-chip" data-filter="sepia">🟤 Sepia</button>
+            <button class="filter-chip" data-filter="blur">💧 Blur</button>
+            <button class="filter-chip" data-filter="brightness">☀️ Brightness</button>
+          </div>
+        </div>
+
+        <!-- Quality -->
+        <div class="form-group">
+          <label class="form-label">Compression Quality</label>
+          <div class="range-wrapper">
+            <input type="range" class="form-range" id="inputQuality" min="1" max="100" value="80">
+            <span class="range-value" id="qualityValue">80</span>
+          </div>
+        </div>
+
+        <!-- Format -->
+        <div class="form-group">
+          <label class="form-label">Output Format</label>
+          <select class="form-select" id="inputFormat">
+            <option value="jpeg">JPEG</option>
+            <option value="png">PNG</option>
+            <option value="webp">WebP</option>
+          </select>
+        </div>
+
+        <!-- Watermark -->
+        <div class="form-group">
+          <label class="form-label">Watermark Text</label>
+          <input type="text" class="form-input" id="inputWatermark" placeholder="e.g. © MyBrand 2026">
+        </div>
+
+        <!-- Watermark Position -->
+        <div class="form-group">
+          <label class="form-label">Watermark Position</label>
+          <select class="form-select" id="inputWatermarkPosition">
+            <option value="bottom-right">Bottom Right</option>
+            <option value="bottom-left">Bottom Left</option>
+            <option value="top-right">Top Right</option>
+            <option value="top-left">Top Left</option>
+            <option value="center">Center</option>
+          </select>
+        </div>
+
+        <!-- Process Button -->
+        <button class="process-btn" id="processBtn" disabled>
+          <span class="process-btn__spinner"></span>
+          <span id="processBtnText">⚡ Process Image</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Column: Status -->
+    <div class="right-column">
+
+      <!-- Status Card -->
+      <div class="card">
+        <div class="card__title">
+          <span class="card__title-icon">📊</span>
+          Pipeline Status
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" style="text-align: center; padding: 40px 0;">
+          <div style="font-size: 48px; margin-bottom: 16px; opacity: 0.4;">🔮</div>
+          <p style="color: var(--text-muted); font-size: 0.9rem;">Upload an image and click Process to see the pipeline in action</p>
+        </div>
+
+        <!-- Status Panel -->
+        <div class="status-panel" id="statusPanel">
+          <div class="progress-bar">
+            <div class="progress-bar__fill" id="progressFill"></div>
+          </div>
+
+          <ul class="stage-list" id="stageList">
+            <li class="stage-item" data-stage="upload">
+              <span class="stage-icon">1</span>
+              <span>Uploading image...</span>
+              <span class="stage-duration" data-duration></span>
+            </li>
+            <li class="stage-item" data-stage="input">
+              <span class="stage-icon">2</span>
+              <span>Validating & loading...</span>
+              <span class="stage-duration" data-duration></span>
+            </li>
+            <li class="stage-item" data-stage="resize">
+              <span class="stage-icon">3</span>
+              <span>Resizing image...</span>
+              <span class="stage-duration" data-duration></span>
+            </li>
+            <li class="stage-item" data-stage="filter">
+              <span class="stage-icon">4</span>
+              <span>Applying filter...</span>
+              <span class="stage-duration" data-duration></span>
+            </li>
+            <li class="stage-item" data-stage="watermark">
+              <span class="stage-icon">5</span>
+              <span>Adding watermark...</span>
+              <span class="stage-duration" data-duration></span>
+            </li>
+            <li class="stage-item" data-stage="compression">
+              <span class="stage-icon">6</span>
+              <span>Compressing...</span>
+              <span class="stage-duration" data-duration></span>
+            </li>
+            <li class="stage-item" data-stage="output">
+              <span class="stage-icon">7</span>
+              <span>Saving output...</span>
+              <span class="stage-duration" data-duration></span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Output Section (full width) -->
+    <section class="output-section card" id="outputSection">
+      <div class="card__title">
+        <span class="card__title-icon">✨</span>
+        Processed Result
+      </div>
+
+      <div class="output-grid">
+        <!-- Processed Image -->
+        <div class="output-image-wrapper">
+          <img id="outputImage" src="" alt="Processed Image">
+        </div>
+
+        <!-- Metadata + Download -->
+        <div class="metadata-panel">
+          <div class="metadata-item">
+            <span class="metadata-item__label">Dimensions</span>
+            <span class="metadata-item__value" id="metaDimensions">—</span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-item__label">Format</span>
+            <span class="metadata-item__value" id="metaFormat">—</span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-item__label">File Size</span>
+            <span class="metadata-item__value" id="metaSize">—</span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-item__label">Channels</span>
+            <span class="metadata-item__value" id="metaChannels">—</span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-item__label">Has Alpha</span>
+            <span class="metadata-item__value" id="metaAlpha">—</span>
+          </div>
+          <div class="metadata-item">
+            <span class="metadata-item__label">Processing Time</span>
+            <span class="metadata-item__value highlight" id="metaTime">—</span>
+          </div>
+
+          <button class="download-btn" id="downloadBtn">
+            ⬇️ Download Processed Image
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
