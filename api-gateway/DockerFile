@@ -12,5 +12,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 # Mở port 80
 EXPOSE 80
 
+
+
 # Chạy Nginx ở chế độ foreground để Docker container không bị thoát
 CMD ["nginx", "-g", "daemon off;"]
