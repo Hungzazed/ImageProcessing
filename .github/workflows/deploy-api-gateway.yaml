@@ -32,8 +32,10 @@ jobs:
             echo "Pull latest source..."
             git pull origin main
 
+            cd api-gateway
+
             echo "Build Docker image..."
-            docker build -t api-gateway ./api-gateway
+            docker build -f DockerFile -t api-gateway ./api-gateway
 
             echo "Stop old container..."
             docker stop api-gateway || true
