@@ -3,7 +3,7 @@ name: Deploy API Gateway to EC2
 on:
   push:
     branches:
-      - dev
+      - main
     paths:
       - "api-gateway/**"
       - ".github/workflows/deploy-api-gateway.yaml"
