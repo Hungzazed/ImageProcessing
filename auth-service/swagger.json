@@ -1,0 +1,95 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Auth Service API",
+    "version": "1.0.0",
+    "description": "Minimal OpenAPI spec for auth-service endpoints used by Swagger UI"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "summary": "Register user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "User registered" }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "summary": "Login user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "password": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "Logged in" } }
+      }
+    },
+    "/auth/verify/{token}": {
+      "get": {
+        "summary": "Verify email",
+        "parameters": [
+          {
+            "name": "token",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": { "200": { "description": "Verified" } }
+      }
+    },
+    "/auth/refresh-token": {
+      "post": {
+        "summary": "Refresh JWT",
+        "responses": { "200": { "description": "New token" } }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "Logout",
+        "responses": { "200": { "description": "Logged out" } }
+      }
+    },
+    "/auth/profile": {
+      "get": {
+        "summary": "Get profile (requires auth)",
+        "responses": { "200": { "description": "User profile" }, "401": { "description": "Unauthorized" } }
+      }
+    },
+    "/auth/google": {
+      "get": { "summary": "Start Google OAuth (redirect)", "responses": { "302": { "description": "Redirect to Google" } } }
+    },
+    "/auth/google/callback": {
+      "get": { "summary": "OAuth callback", "responses": { "302": { "description": "Redirect after auth" } } }
+    }
+  }
+}

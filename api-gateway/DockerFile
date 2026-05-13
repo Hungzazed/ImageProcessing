@@ -1,0 +1,16 @@
+# Sử dụng bản alpine để image nhẹ nhất có thể (chỉ khoảng chục MB)
+FROM nginx:alpine
+
+# Xóa file cấu hình mặc định của Nginx
+RUN rm /etc/nginx/conf.d/default.conf
+
+# Copy file cấu hình gateway của bạn vào container
+# Lưu ý: file nginx.conf phải nằm cùng thư mục với Dockerfile này
+COPY nginx.conf /etc/nginx/nginx.conf
+
+
+# Mở port 80
+EXPOSE 80
+
+# Chạy Nginx ở chế độ foreground để Docker container không bị thoát
+CMD ["nginx", "-g", "daemon off;"]
