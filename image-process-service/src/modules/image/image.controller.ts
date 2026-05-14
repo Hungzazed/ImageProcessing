@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { ImageService } from './image.service';
 import { ImageProcessingOptions } from '../../types/image.types';
 import { logger } from '../../utils/logger';
+import { sendSqsMessage } from '../../utils/sqs';
+import crypto from 'crypto';
 import sharp from 'sharp';
 
 /**
@@ -36,14 +38,44 @@ export class ImageController {
 
       // Process the image
       const result = await this.imageService.processImage(
-        req.file.path,
+        {
+          buffer: req.file.buffer,
+          originalName: req.file.originalname,
+          mimeType: req.file.mimetype,
+        },
         options
       );
+
+      try {
+        const event = {
+          eventId: crypto.randomUUID(),
+          eventType: 'processing.completed',
+          timestamp: new Date().toISOString(),
+          source: 'image-process-service',
+          data: {
+            jobId: req.body.jobId || '',
+            imageId: result.s3Key || result.filename,
+            userId: req.body.userId || '',
+            metadata: {
+              outputUrl: result.outputUrl,
+              filename: result.filename,
+              processingTimeMs: result.processingTime,
+              image: result.metadata,
+            },
+          },
+        };
+
+        await sendSqsMessage(event);
+      } catch (err) {
+        const sqsErr = err as Error;
+        logger.warn(`Failed to publish SQS event: ${sqsErr.message}`);
+      }
 
       res.status(200).json({
         success: true,
         data: {
-          outputPath: `/outputs/${result.filename}`,
+          outputUrl: result.outputUrl,
+          s3Key: result.s3Key,
           filename: result.filename,
           metadata: result.metadata,
           logs: result.logs,

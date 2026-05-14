@@ -1,6 +1,6 @@
 # Notification Service
 
-Notification Service chịu trách nhiệm xử lý các events từ hệ thống Image Processing thông qua Kafka, và gửi thông báo qua Email hoặc Webhook đến các subscribers đã đăng ký.
+Notification Service chịu trách nhiệm xử lý các events từ hệ thống Image Processing thông qua AWS SQS, và gửi thông báo qua Email hoặc Webhook đến các subscribers đã đăng ký.
 
 ## Yêu cầu hệ thống
 - Node.js >= 18
@@ -17,11 +17,11 @@ Notification Service chịu trách nhiệm xử lý các events từ hệ thốn
    ```bash
    cp .env.example .env
    ```
-4. Khởi chạy Kafka, MongoDB và Notification Service thông qua Docker Compose:
+4. Khởi chạy MongoDB và Notification Service thông qua Docker Compose:
    ```bash
    docker-compose up -d
    ```
-   *Lưu ý: Service có thể được khởi chạy cục bộ không qua Docker bằng lệnh `npm run dev` nếu đã có sẵn MongoDB và Kafka.*
+   *Lưu ý: Service có thể được khởi chạy cục bộ không qua Docker bằng lệnh `npm run dev` nếu đã có sẵn MongoDB và cấu hình AWS SQS.*
 
 ## Scripts
 - `npm run dev`: Chạy ở chế độ development (watch mode)

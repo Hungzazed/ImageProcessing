@@ -34,7 +34,7 @@ src/
 │   │   ├── FilterStage.ts          # Apply filters
 │   │   ├── WatermarkStage.ts       # Add watermark
 │   │   ├── CompressionStage.ts     # Compress output
-│   │   └── OutputStage.ts          # Save to disk
+│   │   └── OutputStage.ts          # Upload to S3
 │   └── builders/
 │       └── ImagePipelineBuilder.ts  # Builder Pattern for pipeline
 ├── modules/
@@ -56,7 +56,7 @@ src/
 │ Input Stage │ ──▶ │  Resize  │ ──▶ │   Filter   │ ──▶ │  Watermark  │ ──▶ │ Compression   │ ──▶ │   Output    │
 │             │     │  Stage   │     │   Stage    │     │   Stage     │     │    Stage      │     │   Stage     │
 │ - Validate  │     │ - Width  │     │ - Grayscale│     │ - Text      │     │ - JPEG quality│     │ - UUID name │
-│ - Load Sharp│     │ - Height │     │ - Sepia    │     │ - Image     │     │ - PNG level   │     │ - Save file │
+│ - Load Sharp│     │ - Height │     │ - Sepia    │     │ - Image     │     │ - PNG level   │     │ - Upload S3 │
 │ - Metadata  │     │ - Fit    │     │ - Blur     │     │ - Position  │     │ - WebP        │     │ - Update ctx│
 └─────────────┘     └──────────┘     │ - Bright   │     └─────────────┘     └───────────────┘     └─────────────┘
                                      └────────────┘
@@ -83,7 +83,7 @@ Client Upload (multipart/form-data)
         ▼
 ┌── Express Route (Multer) ──┐
 │   - File validation        │
-│   - Save to uploads/       │
+│   - Keep in memory         │
 └────────────┬───────────────┘
              │
              ▼
@@ -97,7 +97,7 @@ Client Upload (multipart/form-data)
 │   - Build Pipeline (Builder)│
 │   - Create PipelineContext  │
 │   - Execute Pipeline        │
-│   - Cleanup upload file     │
+│   - Upload to S3            │
 └────────────┬───────────────┘
              │
              ▼
@@ -134,8 +134,6 @@ Tạo file `.env` (đã có sẵn mẫu):
 ```env
 PORT=3000
 NODE_ENV=development
-UPLOAD_DIR=uploads
-OUTPUT_DIR=outputs
 MAX_FILE_SIZE=10485760
 ALLOWED_MIME_TYPES=image/jpeg,image/png,image/webp,image/gif
 DEFAULT_QUALITY=80
@@ -144,6 +142,13 @@ DEFAULT_HEIGHT=600
 WATERMARK_FONT_SIZE=24
 WATERMARK_OPACITY=0.5
 LOG_LEVEL=info
+
+AWS_REGION=ap-southeast-1
+S3_BUCKET=your-bucket-name
+S3_KEY_PREFIX=images
+S3_PUBLIC_BASE_URL=https://your-cdn-domain
+S3_ACL=public-read
+SQS_QUEUE_URL=
 ```
 
 ### 3. Chạy development
@@ -223,7 +228,8 @@ curl -X POST http://localhost:3000/api/images/process \
 {
   "success": true,
   "data": {
-    "outputPath": "/outputs/6acc2f7b-a9f0-476d-9b98-7d6d5ceb2c37.jpg",
+    "outputUrl": "https://your-cdn-domain/images/6acc2f7b-a9f0-476d-9b98-7d6d5ceb2c37.jpg",
+    "s3Key": "images/6acc2f7b-a9f0-476d-9b98-7d6d5ceb2c37.jpg",
     "filename": "6acc2f7b-a9f0-476d-9b98-7d6d5ceb2c37.jpg",
     "metadata": {
       "width": 200,
@@ -417,3 +423,4 @@ FilterStage.registerFilter('sharpen', (context, value) => {
 | Multer | 2.x | File upload |
 | chalk | 4.x | Colored logging |
 | dotenv | 17.x | Environment config |
+| @aws-sdk/client-s3 | 3.x | Upload to S3 |

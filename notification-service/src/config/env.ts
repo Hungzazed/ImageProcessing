@@ -10,6 +10,20 @@ export const config = {
     clientId: process.env.KAFKA_CLIENT_ID || "notification-service",
     groupId: process.env.KAFKA_GROUP_ID || "notification-group",
   },
+  aws: {
+    region:
+      process.env.AWS_REGION ||
+      process.env.AWS_DEFAULT_REGION ||
+      "ap-southeast-1",
+    accessKeyId:
+      process.env.AWS_ACCESS_KEY_ID || process.env.IAM_ACCESS_KEY_ID || "",
+    secretAccessKey:
+      process.env.AWS_SECRET_ACCESS_KEY ||
+      process.env.IAM_SECRET_ACCESS_KEY ||
+      "",
+    sqsQueueUrl: process.env.SQS_QUEUE_URL || "",
+    sqsEndpoint: process.env.SQS_ENDPOINT || "",
+  },
   smtp: {
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT || "587"),

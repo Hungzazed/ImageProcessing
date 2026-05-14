@@ -1,7 +1,7 @@
 import express from 'express';
 import { config } from './config/env';
 import { connectDB } from './infrastructure/database/mongoose';
-import { KafkaConsumer } from './infrastructure/messaging/KafkaConsumer';
+import { SqsConsumer } from './infrastructure/messaging/SqsConsumer';
 import { routes } from './presentation/api/routes';
 
 const app = express();
@@ -14,9 +14,11 @@ const start = async () => {
   // Connect to DB
   await connectDB();
 
-  // Start Kafka Consumer
-  const kafkaConsumer = new KafkaConsumer();
-  await kafkaConsumer.connect();
+  // Start SQS Consumer
+  const sqsConsumer = new SqsConsumer();
+  sqsConsumer.start().catch((err) => {
+    console.error('Failed to start SQS consumer', err);
+  });
 
   // Start Express Server
   app.listen(config.port, () => {
@@ -25,3 +27,13 @@ const start = async () => {
 };
 
 start();
+
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down...');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('SIGINT received. Shutting down...');
+  process.exit(0);
+});

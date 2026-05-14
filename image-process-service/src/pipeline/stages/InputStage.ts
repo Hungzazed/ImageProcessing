@@ -20,14 +20,59 @@ export class InputStage extends Stage {
   }
 
   protected async process(context: PipelineContext): Promise<PipelineContext> {
-    const { inputPath } = context;
+    const { inputPath, inputBuffer, inputMimeType, originalName } = context;
 
-    // 1. Validate file exists
+    if (inputBuffer) {
+      const fileSize = inputBuffer.length;
+      if (fileSize > env.maxFileSize) {
+        throw new Error(
+          `File size ${fileSize} exceeds maximum allowed size ${env.maxFileSize} bytes`
+        );
+      }
+
+      if (inputMimeType && !env.allowedMimeTypes.includes(inputMimeType)) {
+        throw new Error(
+          `Unsupported file type: ${inputMimeType}. Allowed: ${env.allowedMimeTypes.join(', ')}`
+        );
+      }
+
+      if (!inputMimeType && originalName) {
+        const ext = path.extname(originalName).toLowerCase();
+        const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+        if (!allowedExts.includes(ext)) {
+          throw new Error(
+            `Unsupported file type: ${ext}. Allowed: ${allowedExts.join(', ')}`
+          );
+        }
+      }
+
+      const sharpInstance = sharp(inputBuffer);
+      const metadata = await sharpInstance.metadata();
+
+      context.sharpInstance = sharpInstance;
+      context.filename = originalName || '';
+      context.metadata = {
+        width: metadata.width,
+        height: metadata.height,
+        format: metadata.format,
+        size: fileSize,
+        channels: metadata.channels,
+        hasAlpha: metadata.hasAlpha,
+        originalName,
+      };
+
+      return context;
+    }
+
+    if (!inputPath) {
+      throw new Error('No input provided. Provide an in-memory buffer or a file path.');
+    }
+
+    // Fallback: legacy file-path flow
     if (!fileExists(inputPath)) {
       throw new Error(`Input file not found: ${inputPath}`);
     }
 
-    // 2. Validate file size
     const fileSize = getFileSize(inputPath);
     if (fileSize > env.maxFileSize) {
       throw new Error(
@@ -35,14 +80,12 @@ export class InputStage extends Stage {
       );
     }
 
-    // 3. Validate file type via extension
     const ext = path.extname(inputPath).toLowerCase();
     const allowedExts = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
     if (!allowedExts.includes(ext)) {
       throw new Error(`Unsupported file type: ${ext}. Allowed: ${allowedExts.join(', ')}`);
     }
 
-    // 4. Load image with Sharp and extract metadata
     const sharpInstance = sharp(inputPath);
     const metadata = await sharpInstance.metadata();
 

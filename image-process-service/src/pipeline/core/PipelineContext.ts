@@ -11,8 +11,12 @@ import {
  * Each stage reads from and writes to this shared context.
  */
 export class PipelineContext {
-  public inputPath: string;
-  public outputPath: string;
+  public inputPath?: string;
+  public inputBuffer?: Buffer;
+  public inputMimeType?: string;
+  public originalName?: string;
+  public outputUrl: string;
+  public s3Key: string;
   public filename: string;
   public metadata: ImageMetadata;
   public sharpInstance: sharp.Sharp | null;
@@ -21,9 +25,21 @@ export class PipelineContext {
   public errors: PipelineError[];
   public startTime: number;
 
-  constructor(inputPath: string, options: ImageProcessingOptions = {}) {
-    this.inputPath = inputPath;
-    this.outputPath = '';
+  constructor(
+    input: {
+      path?: string;
+      buffer?: Buffer;
+      mimeType?: string;
+      originalName?: string;
+    },
+    options: ImageProcessingOptions = {}
+  ) {
+    this.inputPath = input.path;
+    this.inputBuffer = input.buffer;
+    this.inputMimeType = input.mimeType;
+    this.originalName = input.originalName;
+    this.outputUrl = '';
+    this.s3Key = '';
     this.filename = '';
     this.metadata = {};
     this.sharpInstance = null;

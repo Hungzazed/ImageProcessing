@@ -19,6 +19,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.758.0",
+    "@aws-sdk/client-sqs": "^3.758.0",
     "chalk": "^4.1.2",
     "dotenv": "^17.4.2",
     "dotenv-flow": "^4.1.0",

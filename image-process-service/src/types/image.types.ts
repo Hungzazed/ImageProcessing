@@ -75,7 +75,8 @@ export interface ApiResponse<T = any> {
  * Image processing result
  */
 export interface ImageProcessingResult {
-  outputPath: string;
+  outputUrl: string;
+  s3Key: string;
   filename: string;
   metadata: ImageMetadata;
   logs: PipelineLog[];

@@ -17,10 +17,6 @@ const publicDir = path.resolve(process.cwd(), 'public');
 ensureDir(publicDir);
 app.use(express.static(publicDir));
 
-// Serve static output files
-ensureDir(env.outputDir);
-app.use('/outputs', express.static(env.outputDir));
-
 // API Routes
 app.use('/api/images', imageRoutes);
 

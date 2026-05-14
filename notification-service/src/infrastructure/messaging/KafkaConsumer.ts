@@ -1,6 +1,6 @@
 import { Kafka } from 'kafkajs';
-import { config } from '../../config/env';
-import { ProcessEvent } from '../../application/use-cases/ProcessEvent';
+import { config } from '../../config/env.js';
+import { ProcessEvent } from '../../application/use-cases/ProcessEvent.js';
 
 export class KafkaConsumer {
   private kafka = new Kafka({

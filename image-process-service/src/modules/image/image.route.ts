@@ -1,25 +1,9 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
-import crypto from 'crypto';
 import { ImageController } from './image.controller';
 import { env } from '../../config/env';
-import { ensureDir } from '../../utils/file';
-
-// Ensure upload directory exists
-ensureDir(env.uploadDir);
-
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, env.uploadDir);
-  },
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${crypto.randomUUID()}${ext}`;
-    cb(null, uniqueName);
-  },
-});
+// Configure multer memory storage
+const storage = multer.memoryStorage();
 
 // File filter to allow only images
 const fileFilter = (

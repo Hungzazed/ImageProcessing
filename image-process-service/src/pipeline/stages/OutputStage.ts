@@ -1,17 +1,15 @@
-import path from 'path';
 import crypto from 'crypto';
 import { Stage } from '../core/Stage';
 import { PipelineContext } from '../core/PipelineContext';
 import { env } from '../../config/env';
-import { ensureDir, getFileSize } from '../../utils/file';
+import { uploadImageToS3 } from '../../utils/s3';
 
 /**
- * Output Stage - saves the processed image to disk
+ * Output Stage - uploads the processed image to S3
  * Responsibilities:
  *   - Generate unique filename
- *   - Ensure output directory exists
- *   - Save file to outputs/
- *   - Update context with output path
+ *   - Upload to S3 bucket
+ *   - Update context with S3 info
  */
 export class OutputStage extends Stage {
   constructor(enabled: boolean = true) {
@@ -23,25 +21,25 @@ export class OutputStage extends Stage {
       throw new Error('No Sharp instance available. InputStage must run first.');
     }
 
-    // Ensure output directory exists
-    ensureDir(env.outputDir);
-
     // Generate unique filename
     const format = context.metadata.format || 'jpeg';
     const ext = format === 'jpeg' ? 'jpg' : format;
     const uniqueFilename = `${crypto.randomUUID()}.${ext}`;
-    const outputPath = path.join(env.outputDir, uniqueFilename);
+    const prefix = env.s3KeyPrefix ? env.s3KeyPrefix.replace(/\/+$/, '') : '';
+    const key = prefix ? `${prefix}/${uniqueFilename}` : uniqueFilename;
 
-    // Save the processed image
-    await context.sharpInstance.toFile(outputPath);
+    // Export image to buffer and upload to S3
+    const buffer = await context.sharpInstance.toBuffer();
+    const mimeType = format === 'jpeg' ? 'image/jpeg' : `image/${format}`;
+    const uploaded = await uploadImageToS3(buffer, key, mimeType);
 
     // Update context
-    context.outputPath = outputPath;
+    context.outputUrl = uploaded.url;
+    context.s3Key = uploaded.key;
     context.filename = uniqueFilename;
 
     // Update metadata with final file info
-    const finalSize = getFileSize(outputPath);
-    context.metadata.size = finalSize;
+    context.metadata.size = buffer.length;
 
     return context;
   }

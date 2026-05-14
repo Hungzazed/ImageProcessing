@@ -2,7 +2,6 @@ import { ImagePipelineBuilder } from '../../pipeline/builders/ImagePipelineBuild
 import { PipelineContext } from '../../pipeline/core/PipelineContext';
 import { ImageProcessingOptions, ImageProcessingResult } from '../../types/image.types';
 import { logger } from '../../utils/logger';
-import { deleteFile } from '../../utils/file';
 
 /**
  * Image Service - business logic layer
@@ -13,10 +12,10 @@ export class ImageService {
    * Process a single image through the pipeline
    */
   async processImage(
-    inputPath: string,
+    input: { buffer: Buffer; originalName: string; mimeType?: string },
     options: ImageProcessingOptions
   ): Promise<ImageProcessingResult> {
-    logger.info(`Processing image: ${inputPath}`);
+    logger.info(`Processing image: ${input.originalName}`);
 
     // Build the pipeline with all stages
     const pipeline = new ImagePipelineBuilder('ImageProcessing')
@@ -24,20 +23,20 @@ export class ImageService {
       .build();
 
     // Create pipeline context
-    const context = new PipelineContext(inputPath, options);
+    const context = new PipelineContext(
+      {
+        buffer: input.buffer,
+        originalName: input.originalName,
+        mimeType: input.mimeType,
+      },
+      options
+    );
 
     // Execute the pipeline
     const result = await pipeline.execute(context);
 
-    // Clean up uploaded file after processing
-    try {
-      deleteFile(inputPath);
-    } catch (err) {
-      logger.warn(`Failed to clean up input file: ${inputPath}`);
-    }
-
     // Check for critical errors (no output generated)
-    if (!result.outputPath) {
+    if (!result.outputUrl) {
       throw new Error(
         `Pipeline failed to produce output. Errors: ${result.errors
           .map((e) => `[${e.stage}] ${e.message}`)
@@ -46,7 +45,8 @@ export class ImageService {
     }
 
     return {
-      outputPath: result.outputPath,
+      outputUrl: result.outputUrl,
+      s3Key: result.s3Key,
       filename: result.filename,
       metadata: result.metadata,
       logs: result.logs,
@@ -58,11 +58,11 @@ export class ImageService {
    * Process image with custom pipeline configuration
    */
   async processImageWithConfig(
-    inputPath: string,
+    input: { buffer: Buffer; originalName: string; mimeType?: string },
     options: ImageProcessingOptions,
     stageOverrides?: { [stageName: string]: boolean }
   ): Promise<ImageProcessingResult> {
-    logger.info(`Processing image with custom config: ${inputPath}`);
+    logger.info(`Processing image with custom config: ${input.originalName}`);
 
     const builder = new ImagePipelineBuilder('CustomPipeline');
 
@@ -85,17 +85,17 @@ export class ImageService {
     builder.withOutput();
 
     const pipeline = builder.build();
-    const context = new PipelineContext(inputPath, options);
+    const context = new PipelineContext(
+      {
+        buffer: input.buffer,
+        originalName: input.originalName,
+        mimeType: input.mimeType,
+      },
+      options
+    );
     const result = await pipeline.execute(context);
 
-    // Clean up
-    try {
-      deleteFile(inputPath);
-    } catch (err) {
-      logger.warn(`Failed to clean up input file: ${inputPath}`);
-    }
-
-    if (!result.outputPath) {
+    if (!result.outputUrl) {
       throw new Error(
         `Pipeline failed. Errors: ${result.errors
           .map((e) => `[${e.stage}] ${e.message}`)
@@ -104,7 +104,8 @@ export class ImageService {
     }
 
     return {
-      outputPath: result.outputPath,
+      outputUrl: result.outputUrl,
+      s3Key: result.s3Key,
       filename: result.filename,
       metadata: result.metadata,
       logs: result.logs,
