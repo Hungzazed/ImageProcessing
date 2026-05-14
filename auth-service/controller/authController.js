@@ -1,28 +1,61 @@
+const { randomInt } = require("crypto");
 const User = require("../model/user");
-const bcrypt = require("bcrypt")
+const PendingRegistration = require("../model/pendingRegistration");
+const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const sendEmail = require("../utils/sendEmail");
-const user = require("../model/user");
 
-const verificationSecret =process.env.JWT_ACCESS_SECRET;
+const OTP_EXPIRES_IN_MINUTES = 10;
+
+const generateOtp = () => String(randomInt(100000, 1000000));
 
 exports.register = async(req , res)=>{
     const {name , email , password} = req.body;
 
-    const exits = await User.findOne({email});
-    console.log(exits)
-    if(exits) return res.status(400).json({message:"Email exits"});
+    if(!name || !email || !password){
+        return res.status(400).json({message:"Name, email and password are required"});
+    }
 
-    const hashed = await bcrypt.hash(password,10);
+    const existingUser = await User.findOne({email});
+    if(existingUser) return res.status(400).json({message:"Email already exists"});
 
-    const user = await User.create({
+    const passwordHash = await bcrypt.hash(password,10);
+    const otp = generateOtp();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRES_IN_MINUTES * 60 * 1000);
+
+    await PendingRegistration.deleteOne({email});
+    await PendingRegistration.create({
         name,
         email,
-        password:hashed,
-        isVerified: true
-    })
+        passwordHash,
+        otpHash,
+        otpExpiresAt
+    });
 
-    res.json({message:"Register success",user})
+        try {
+                await sendEmail(
+                        email,
+                        'Xác thực đăng ký bằng OTP',
+                        `
+                            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+                                <h2>Xác thực đăng ký</h2>
+                                <p>Mã OTP của bạn là:</p>
+                                <div style="font-size: 28px; font-weight: 700; letter-spacing: 6px; padding: 12px 16px; background: #f3f4f6; display: inline-block; border-radius: 8px;">
+                                    ${otp}
+                                </div>
+                                <p style="margin-top: 16px;">Mã sẽ hết hạn sau ${OTP_EXPIRES_IN_MINUTES} phút.</p>
+                            </div>
+                        `
+                );
+        } catch (error) {
+                await PendingRegistration.deleteOne({email});
+                return res.status(500).json({message:"Failed to send OTP email"});
+        }
+
+    res.status(201).json({
+        message:"OTP has been sent to your email. Please verify to complete registration."
+    });
 }
 exports.login = async (req, res)=>{
     const {email , password} = req.body;
@@ -30,6 +63,7 @@ exports.login = async (req, res)=>{
     const user = await User.findOne({email});
 
     if(!user) return res.status(400).json({message:"User not found"});
+    if(!user.isVerified) return res.status(403).json({message:"Email is not verified"});
 
     const match = await bcrypt.compare(password,user.password);
     if(!match) return res.status(400).json({message:"Wrong password"});
@@ -57,18 +91,54 @@ exports.login = async (req, res)=>{
     console.log('Login userData with role:', userData);
     res.json({message:"Login success",accessToken,user : userData})
 }
-exports.verifyEmail = async(req, res)=>{
-    const {token} = req.params;
+const verifyOtp = async(req, res)=>{
+    const {email, otp} = req.body;
+
+    if(!email || !otp){
+        return res.status(400).json({message:"Email and OTP are required"});
+    }
+
     try {
-        const decoded = jwt.verify(token, verificationSecret);
-        await User.findByIdAndUpdate(decoded.id,{
-            isVerified:true
-        })
-        res.json({message:"Email verify successfull"})
+        const pendingRegistration = await PendingRegistration.findOne({email});
+
+        if(!pendingRegistration){
+            return res.status(400).json({message:"OTP request not found or expired"});
+        }
+
+        if(pendingRegistration.otpExpiresAt.getTime() < Date.now()){
+            await PendingRegistration.deleteOne({_id: pendingRegistration._id});
+            return res.status(400).json({message:"OTP has expired. Please register again."});
+        }
+
+        const validOtp = await bcrypt.compare(String(otp), pendingRegistration.otpHash);
+
+        if(!validOtp){
+            return res.status(400).json({message:"Invalid OTP"});
+        }
+
+        const existingUser = await User.findOne({email});
+        if(existingUser){
+            await PendingRegistration.deleteOne({_id: pendingRegistration._id});
+            return res.status(400).json({message:"Email already exists"});
+        }
+
+        const user = await User.create({
+            name: pendingRegistration.name,
+            email: pendingRegistration.email,
+            password: pendingRegistration.passwordHash,
+            isVerified: true
+        });
+
+        await PendingRegistration.deleteOne({_id: pendingRegistration._id});
+
+        res.status(201).json({message:"OTP verified successfully", user});
     } catch (error) {
-        res.status(400).json({message:"invalid token"})
+        res.status(500).json({message:"Server error"})
     }
 }
+
+exports.verifyOtp = verifyOtp;
+exports.verifyEmail = verifyOtp;
 exports.refreshToken = async(req, res)=>{
     const token = req.cookies.refreshToken;
 

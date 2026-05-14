@@ -13,7 +13,7 @@
   "paths": {
     "/auth/register": {
       "post": {
-        "summary": "Register user",
+        "summary": "Register user and send OTP",
         "requestBody": {
           "required": true,
           "content": {
@@ -21,6 +21,7 @@
               "schema": {
                 "type": "object",
                 "properties": {
+                  "name": { "type": "string" },
                   "email": { "type": "string" },
                   "password": { "type": "string" }
                 }
@@ -29,7 +30,7 @@
           }
         },
         "responses": {
-          "200": { "description": "User registered" }
+          "201": { "description": "OTP sent to email" }
         }
       }
     },
@@ -53,18 +54,24 @@
         "responses": { "200": { "description": "Logged in" } }
       }
     },
-    "/auth/verify/{token}": {
-      "get": {
-        "summary": "Verify email",
-        "parameters": [
-          {
-            "name": "token",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
+    "/auth/verify-otp": {
+      "post": {
+        "summary": "Verify OTP and create user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { "type": "string" },
+                  "otp": { "type": "string" }
+                }
+              }
+            }
           }
-        ],
-        "responses": { "200": { "description": "Verified" } }
+        },
+        "responses": { "201": { "description": "OTP verified and user created" } }
       }
     },
     "/auth/refresh-token": {
