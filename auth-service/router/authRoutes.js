@@ -4,11 +4,11 @@ const passport = require('passport');
 require('../config/passport');
 const {auth} = require('../middleware/auth');
 
-const {login, register, verifyEmail, refreshToken, logout, googleCallback, getProfile} = require('../controller/authController');
+const {login, register, verifyOtp, refreshToken, logout, googleCallback, getProfile} = require('../controller/authController');
 
 router.post('/register', register);
 router.post('/login', login);
-router.get('/verify/:token', verifyEmail);
+router.post('/verify-otp', verifyOtp);
 router.post('/refresh-token', refreshToken);
 router.post('/logout', logout);
 router.get('/profile', auth, getProfile);
