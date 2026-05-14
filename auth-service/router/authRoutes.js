@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const passport = require('passport');
 require('../config/passport');
-const {auth} = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 
-const {login, register, verifyOtp, refreshToken, logout, googleCallback, getProfile} = require('../controller/authController');
+const { login, register, verifyOtp, refreshToken, logout, googleCallback, getProfile } = require('../controller/authController');
 
 router.post('/register', register);
 router.post('/login', login);

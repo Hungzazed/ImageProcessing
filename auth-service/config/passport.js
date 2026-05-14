@@ -13,9 +13,9 @@ passport.use(
     async (accessToken, refreshToken, profile, done) => {
       try {
         const email = profile.emails[0].value;
-        
+
         // Tìm user bằng googleId hoặc email
-        let user = await User.findOne({ 
+        let user = await User.findOne({
           $or: [
             { googleId: profile.id },
             { email: email }
