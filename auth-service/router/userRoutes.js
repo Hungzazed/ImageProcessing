@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const {auth, checkAdmin} = require('../middleware/auth');
-const {getAllUsers, updateUserRole, deleteUser} = require('../controller/authController');
+const { auth, checkAdmin } = require('../middleware/auth');
+const { getAllUsers, updateUserRole, deleteUser } = require('../controller/authController');
 
 // Get all users (Admin only)
 router.get('/', auth, checkAdmin, getAllUsers);

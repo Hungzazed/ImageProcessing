@@ -10,6 +10,15 @@
       "url": "http://localhost:3000"
     }
   ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  },
   "paths": {
     "/auth/register": {
       "post": {
@@ -89,7 +98,28 @@
     "/auth/profile": {
       "get": {
         "summary": "Get profile (requires auth)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
         "responses": { "200": { "description": "User profile" }, "401": { "description": "Unauthorized" } }
+      }
+    },
+    "/auth/verify": {
+      "get": {
+        "summary": "Verify access token and return the current user",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": { "description": "Token is valid" },
+          "401": { "description": "No token provided" },
+          "403": { "description": "Invalid token" },
+          "404": { "description": "User not found" }
+        }
       }
     },
     "/auth/google": {
