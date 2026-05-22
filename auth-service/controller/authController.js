@@ -4,6 +4,7 @@ const PendingRegistration = require("../model/pendingRegistration");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const sendEmail = require("../utils/sendEmail");
+const { getAccessTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
 
 const OTP_EXPIRES_IN_MINUTES = 10;
 
@@ -238,6 +239,31 @@ exports.getProfile = async(req, res) => {
         res.json({user});
     } catch (error) {
         res.status(500).json({message: "Server error", error: error.message});
+    }
+}
+
+// Verify access token for API gateway / downstream services
+exports.verifyToken = async (req, res) => {
+    const token = getAccessTokenFromRequest(req);
+
+    if (!token) {
+        return res.status(401).json({ message: "No token" });
+    }
+
+    try {
+        const decoded = verifyAccessToken(token);
+        const user = await User.findById(decoded.id).select('-password -refreshToken');
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        return res.json({
+            valid: true,
+            user,
+        });
+    } catch (error) {
+        return res.status(403).json({ message: "Invalid token" });
     }
 }
 

@@ -1,14 +1,30 @@
 const jwt = require('jsonwebtoken')
 const User = require('../model/user')
 
+const getAccessTokenFromRequest = (req) => {
+    const authorization = req.headers.authorization;
+
+    if (!authorization) return null;
+
+    const [scheme, token] = authorization.split(' ');
+
+    if (scheme !== 'Bearer' || !token) return null;
+
+    return token;
+}
+
+const verifyAccessToken = (token) => {
+    return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+}
+
 // Middleware xác thực accessToken
 const auth = function (req, res, next) {
-    const token = req.headers.authorization?.split(" ")[1];
+    const token = getAccessTokenFromRequest(req);
 
     if (!token) return res.status(401).json({ message: "No token" })
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_ACCESS_SECRET);
+        const decoded = verifyAccessToken(token);
         req.userId = decoded.id;
         next();
     } catch (error) {
@@ -34,4 +50,4 @@ const checkAdmin = async (req, res, next) => {
     }
 }
 
-module.exports = { auth, checkAdmin };
+module.exports = { auth, checkAdmin, getAccessTokenFromRequest, verifyAccessToken };
