@@ -14,12 +14,12 @@ const app = express();
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+const frontendUrl = process.env.FRONTEND_URL;
 
 app.use(cookieParser());
 
 app.use(cors({
-    origin: [frontendUrl, 'http://localhost:5173', 'http://localhost:3000'],
+    origin: [frontendUrl],
     credentials: true
 }));
 
