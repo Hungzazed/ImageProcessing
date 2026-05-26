@@ -13,13 +13,22 @@ const getAccessTokenFromRequest = (req) => {
     return token;
 }
 
+const getAccessTokenFromCookie = (req) => {
+    if (!req.cookies) return null;
+
+    const token = req.cookies.accessToken;
+    if (!token) return null;
+
+    return token;
+}
+
 const verifyAccessToken = (token) => {
     return jwt.verify(token, process.env.JWT_ACCESS_SECRET);
 }
 
 // Middleware xác thực accessToken
 const auth = function (req, res, next) {
-    const token = getAccessTokenFromRequest(req);
+    const token = getAccessTokenFromRequest(req) || getAccessTokenFromCookie(req);
 
     if (!token) return res.status(401).json({ message: "No token" })
 
@@ -50,4 +59,4 @@ const checkAdmin = async (req, res, next) => {
     }
 }
 
-module.exports = { auth, checkAdmin, getAccessTokenFromRequest, verifyAccessToken };
+module.exports = { auth, checkAdmin, getAccessTokenFromRequest, getAccessTokenFromCookie, verifyAccessToken };
