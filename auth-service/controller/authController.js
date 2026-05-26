@@ -1,14 +1,19 @@
-const { randomInt } = require("crypto");
+const { randomInt, randomBytes, createHash } = require("crypto");
 const User = require("../model/user");
 const PendingRegistration = require("../model/pendingRegistration");
+const PasswordResetToken = require("../model/passwordResetToken");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const sendEmail = require("../utils/sendEmail");
 const { getAccessTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
 
 const OTP_EXPIRES_IN_MINUTES = 10;
+const RESET_TOKEN_EXPIRES_IN_MINUTES = 30;
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 const generateOtp = () => String(randomInt(100000, 1000000));
+const generateResetToken = () => randomBytes(32).toString('hex');
+const hashToken = (token) => createHash('sha256').update(token).digest('hex');
 
 exports.register = async(req , res)=>{
     const {name , email , password} = req.body;
@@ -86,12 +91,107 @@ exports.login = async (req, res)=>{
         httpOnly: true,
         secure: false,
         sameSite: 'lax',
+        path: '/',
         maxAge: 7*24*60*60*1000
     })
   const { password: _, refreshToken: __, ...userData} = user._doc;
     console.log('Login userData with role:', userData);
     res.json({message:"Login success",accessToken,user : userData})
 }
+
+exports.forgotPassword = async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: "Email is required" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        return res.status(200).json({
+            message: "If the account exists, a password reset email has been sent."
+        });
+    }
+
+    const token = generateResetToken();
+    const tokenHash = hashToken(token);
+    const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRES_IN_MINUTES * 60 * 1000);
+
+    await PasswordResetToken.deleteOne({ email });
+    await PasswordResetToken.create({
+        email,
+        tokenHash,
+        expiresAt
+    });
+
+    try {
+        const resetUrl = `${FRONTEND_URL}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
+
+        await sendEmail(
+            email,
+            'Khôi phục mật khẩu',
+            `
+                <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+                    <h2>Khôi phục mật khẩu</h2>
+                    <p>Bạn đã yêu cầu đặt lại mật khẩu. Nhấn vào nút bên dưới để tiếp tục:</p>
+                    <p style="margin: 24px 0;">
+                        <a href="${resetUrl}" style="display:inline-block;background:#111827;color:#fff;text-decoration:none;padding:12px 18px;border-radius:10px;font-weight:700;">
+                            Đặt lại mật khẩu
+                        </a>
+                    </p>
+                    <p>Nếu nút không hoạt động, hãy sao chép liên kết sau:</p>
+                    <p style="word-break: break-all; color: #2563eb;">${resetUrl}</p>
+                    <p style="margin-top: 16px;">Liên kết sẽ hết hạn sau ${RESET_TOKEN_EXPIRES_IN_MINUTES} phút.</p>
+                </div>
+            `
+        );
+    } catch (error) {
+        await PasswordResetToken.deleteOne({ email });
+        return res.status(500).json({ message: "Failed to send password reset email" });
+    }
+
+    return res.status(200).json({
+        message: "If the account exists, a password reset email has been sent."
+    });
+};
+
+exports.resetPassword = async (req, res) => {
+    const { email, token, newPassword } = req.body;
+
+    if (!email || !token || !newPassword) {
+        return res.status(400).json({ message: "Email, token and newPassword are required" });
+    }
+
+    const resetRequest = await PasswordResetToken.findOne({ email });
+
+    if (!resetRequest) {
+        return res.status(400).json({ message: "Reset token not found or expired" });
+    }
+
+    if (resetRequest.expiresAt.getTime() < Date.now()) {
+        await PasswordResetToken.deleteOne({ _id: resetRequest._id });
+        return res.status(400).json({ message: "Reset token has expired" });
+    }
+
+    if (resetRequest.tokenHash !== hashToken(token)) {
+        return res.status(400).json({ message: "Invalid reset token" });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+        await PasswordResetToken.deleteOne({ _id: resetRequest._id });
+        return res.status(404).json({ message: "User not found" });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    user.refreshToken = null;
+    await user.save();
+    await PasswordResetToken.deleteOne({ _id: resetRequest._id });
+
+    return res.json({ message: "Password reset successfully" });
+};
 const verifyOtp = async(req, res)=>{
     const {email, otp} = req.body;
 
@@ -166,7 +266,7 @@ exports.logout = async(req,res)=>{
     if(token){
         await User.updateOne({refreshToken:token},{$set:{refreshToken:null}})
     }
-    res.clearCookie("refreshToken");
+    res.clearCookie("refreshToken", { path: '/' });
     res.json({message:"logout success"})
 }
 
@@ -195,6 +295,7 @@ exports.googleCallback = async(req, res)=>{
             httpOnly: true,
             secure: false,
             sameSite: 'lax',
+            path: '/',
             maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
@@ -202,6 +303,7 @@ exports.googleCallback = async(req, res)=>{
             httpOnly: false, // Frontend cần đọc được
             secure: false,
             sameSite: 'lax',
+            path: '/',
             maxAge: 15 * 60 * 1000, // 15 phút
         });
 
@@ -218,14 +320,15 @@ exports.googleCallback = async(req, res)=>{
             httpOnly: false,
             secure: false,
             sameSite: 'lax',
+            path: '/',
             maxAge: 10 * 1000, // 10 giây - chỉ để chuyển data
         });
         
         // Redirect không có token trên URL
-        res.redirect(`${process.env.FRONTEND_URL}/callback`);
+        res.redirect(`${FRONTEND_URL}/callback`);
     } catch (error) {
         console.error('Google callback error:', error);
-        res.redirect(`${process.env.FRONTEND_URL}/login?error=google_auth_failed`);
+        res.redirect(`${FRONTEND_URL}/login?error=google_auth_failed`);
     }
 }
 
@@ -245,13 +348,16 @@ exports.getProfile = async(req, res) => {
 // Verify access token for API gateway / downstream services
 exports.verifyToken = async (req, res) => {
     const token = getAccessTokenFromRequest(req);
+    const cookieToken = req.cookies?.accessToken;
 
-    if (!token) {
+    if (!token && !cookieToken) {
         return res.status(401).json({ message: "No token" });
     }
 
+    const resolvedToken = token || cookieToken;
+
     try {
-        const decoded = verifyAccessToken(token);
+        const decoded = verifyAccessToken(resolvedToken);
         const user = await User.findById(decoded.id).select('-password -refreshToken');
 
         if (!user) {
@@ -261,6 +367,7 @@ exports.verifyToken = async (req, res) => {
         return res.json({
             valid: true,
             user,
+            accessToken: resolvedToken,
         });
     } catch (error) {
         return res.status(403).json({ message: "Invalid token" });
