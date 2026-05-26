@@ -3,7 +3,7 @@ import axios from 'axios';
 const stripTrailingSlash = (value) => value.replace(/\/$/, '');
 
 export const API_BASE_URL = stripTrailingSlash(
-  import.meta.env.VITE_AUTH_API_URL || 'http://localhost:3000'
+  import.meta.env.VITE_AUTH_API_URL
 );
 
 const apiClient = axios.create({
