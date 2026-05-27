@@ -42,7 +42,7 @@ jobs:
           done
 
       - name: Serverless Deploy to AWS
-        run: serverless deploy --stage prod
+        run: serverless deploy --stage prod --conceal
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.PIPELINE_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.PIPELINE_AWS_SECRET_ACCESS_KEY }}
