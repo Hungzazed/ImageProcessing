@@ -56,14 +56,13 @@ appSync:
   authentication:
     type: API_KEY
   schema: graphql/schema.graphql
-
   dataSources:
-    - type: NONE
-      name: NoneDataSource
-
+    - name: NoneDataSource
+      type: NONE
   resolvers:
     - type: Mutation
       field: publishProgress
+      kind: UNIT # <--- BẮT BUỘC CÓ Ở BẢN PLUGIN MỚI
       dataSource: NoneDataSource
       request: mapping-templates/publishProgress-request.vtl
       response: mapping-templates/publishProgress-response.vtl
