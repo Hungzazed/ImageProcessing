@@ -23,6 +23,6 @@ jobs:
 
             npm install
 
-            sudo systemctl restart auth
+            sudo systemctl restart auth.service
 
-            sudo systemctl status auth --no-pager
+            sudo systemctl status auth.service --no-pager
