@@ -113,13 +113,19 @@ cd -
 ```
 
 ### 2. Deployment
-Deploy to AWS:
+Deploy to AWS (using dev or prod stage):
 ```bash
-serverless deploy --stage dev
+# Deploy to development
+npx serverless deploy --stage dev --conceal
+
+# Deploy to production
+npx serverless deploy --stage prod --conceal
 ```
-Upon completion, the Serverless output will print:
-- The GraphQL API Endpoint URL (`https://xxxx.appsync-api.us-east-1.amazonaws.com/graphql`)
-- The AppSync GraphQL API Key (`da2-xxxxxxxxxxxxxxxxxxxxxxxxxx`)
+
+Upon successful production deployment, the stack generates:
+*   **GraphQL Endpoint**: `https://slkwfm6c2vaszpnponhcxlxs6i.appsync-api.us-east-1.amazonaws.com/graphql`
+*   **Realtime WebSocket Endpoint**: `wss://slkwfm6c2vaszpnponhcxlxs6i.appsync-realtime-api.us-east-1.amazonaws.com/graphql`
+*   **API Key**: *(Will be output in AWS Console/CloudFormation outputs or dynamically retrieved)*
 
 ### 3. Verify SES Email (SES Sandbox)
 If your AWS account is in the SES Sandbox:
@@ -128,13 +134,70 @@ If your AWS account is in the SES Sandbox:
 
 ---
 
+## Client Integration Guide
+
+To consume real-time updates on a web/mobile client, connect to the AppSync service using the details below.
+
+### Authenticating Requests
+All client requests must include the API key header:
+```http
+x-api-key: <your-appsync-api-key>
+Content-Type: application/json
+```
+
+### Option A: Connecting with Apollo Client
+You can use `aws-appsync` or standard Apollo client links. Here is a connection configuration template:
+
+```javascript
+import { ApolloClient, InMemoryCache, createHttpLink } from '@apollo/client';
+import { ApolloLink } from '@apollo/client/link/core';
+import { createSubscriptionHandshakeLink } from 'aws-appsync-subscription-link';
+
+const url = 'https://slkwfm6c2vaszpnponhcxlxs6i.appsync-api.us-east-1.amazonaws.com/graphql';
+const region = 'us-east-1';
+const auth = {
+  type: 'API_KEY',
+  apiKey: '<your-appsync-api-key>',
+};
+
+const httpLink = createHttpLink({ uri: url });
+
+const link = ApolloLink.from([
+  createSubscriptionHandshakeLink({ url, region, auth }, httpLink),
+]);
+
+const client = new ApolloClient({
+  link,
+  cache: new InMemoryCache(),
+});
+```
+
+### Option B: Connecting with AWS Amplify
+Configure Amplify in your entry point:
+```javascript
+import { Amplify } from 'aws-amplify';
+
+Amplify.configure({
+  API: {
+    GraphQL: {
+      endpoint: 'https://slkwfm6c2vaszpnponhcxlxs6i.appsync-api.us-east-1.amazonaws.com/graphql',
+      region: 'us-east-1',
+      defaultAuthMode: 'apiKey',
+      apiKey: '<your-appsync-api-key>'
+    }
+  }
+});
+```
+
+---
+
 ## Verification & Seeding
 
 ### Seeding a Subscription (AWS CLI Example)
-To receive notifications, add a subscription to DynamoDB:
+To receive email or webhook notifications, seed a subscription into the production subscriptions table:
 ```bash
 aws dynamodb put-item \
-  --table-name notification-serverless-dev-subscriptions \
+  --table-name notification-serverless-prod-subscriptions \
   --item '{
     "userId": {"S": "user-999"},
     "id": {"S": "sub-111"},
@@ -144,4 +207,8 @@ aws dynamodb put-item \
     "isActive": {"BOOL": true}
   }'
 ```
-Once added, any `image.completed` event published by the pipeline for `userId: "user-999"` will trigger an email to `your-verified-email@example.com` and push WebSocket updates to any client listening to `onProgressUpdate(userId: "user-999")`!
+
+Once added, any pipeline events (such as `image.completed`) containing `userId: "user-999"` will:
+1. Dispatch an email update to `your-verified-email@example.com` via AWS SES.
+2. Publish real-time state changes to the AppSync endpoint, notifying WebSocket clients listening to subscription `onProgressUpdate(userId: "user-999")`.
+
