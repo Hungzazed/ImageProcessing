@@ -1,0 +1,431 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<style>
+        :root {
+            --glass-bg: rgba(30, 41, 59, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+        body {
+            background-color: #0b1326;
+            color: #dae2fd;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        .pulse-lavender {
+            animation: pulse-lavender 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse-lavender {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(210, 187, 255, 0.4); }
+            50% { box-shadow: 0 0 0 15px rgba(210, 187, 255, 0); }
+        }
+        .glow-line {
+            background: linear-gradient(90deg, transparent, #d2bbff, transparent);
+            background-size: 200% 100%;
+            animation: move-glow 3s linear infinite;
+        }
+        @keyframes move-glow {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .terminal-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+        .terminal-scroll::-webkit-scrollbar-thumb {
+            background: rgba(210, 187, 255, 0.2);
+            border-radius: 10px;
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#3d0026",
+                        "surface-dim": "#0b1326",
+                        "on-primary": "#3f008e",
+                        "surface-container-highest": "#2d3449",
+                        "on-primary-fixed": "#25005a",
+                        "on-error": "#690005",
+                        "error": "#ffb4ab",
+                        "on-secondary": "#003640",
+                        "primary": "#d2bbff",
+                        "surface-bright": "#31394d",
+                        "surface": "#0b1326",
+                        "on-background": "#dae2fd",
+                        "surface-container-high": "#222a3d",
+                        "inverse-on-surface": "#283044",
+                        "surface-variant": "#2d3449",
+                        "secondary-fixed-dim": "#4cd7f6",
+                        "secondary-fixed": "#acedff",
+                        "tertiary-fixed-dim": "#ffafd3",
+                        "on-surface-variant": "#ccc3d8",
+                        "tertiary-container": "#ae397b",
+                        "surface-container-low": "#131b2e",
+                        "surface-tint": "#d2bbff",
+                        "outline-variant": "#4a4455",
+                        "surface-container": "#171f33",
+                        "on-surface": "#dae2fd",
+                        "on-secondary-container": "#00424e",
+                        "on-primary-container": "#ede0ff",
+                        "on-error-container": "#ffdad6",
+                        "secondary": "#4cd7f6",
+                        "on-tertiary-fixed-variant": "#85145a",
+                        "tertiary-fixed": "#ffd8e7",
+                        "on-tertiary-container": "#ffdce9",
+                        "primary-container": "#7c3aed",
+                        "background": "#0b1326",
+                        "inverse-primary": "#732ee4",
+                        "primary-fixed-dim": "#d2bbff",
+                        "inverse-surface": "#dae2fd",
+                        "outline": "#958da1",
+                        "on-primary-fixed-variant": "#5a00c6",
+                        "surface-container-lowest": "#060e20",
+                        "secondary-container": "#03b5d3",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "error-container": "#93000a",
+                        "primary-fixed": "#eaddff",
+                        "on-tertiary": "#620040",
+                        "tertiary": "#ffafd3",
+                        "on-secondary-fixed": "#001f26"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "md": "16px",
+                        "margin-desktop": "64px",
+                        "xl": "40px",
+                        "sm": "8px",
+                        "lg": "24px",
+                        "gutter": "24px",
+                        "xs": "4px",
+                        "base": "4px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "headline-md": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "label-sm": ["Inter"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "headline-sm": ["Plus Jakarta Sans"],
+                        "body-sm": ["Inter"],
+                        "label-md": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                        "headline-md": ["30px", {"lineHeight": "38px", "fontWeight": "600"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "label-sm": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                        "display-lg-mobile": ["36px", {"lineHeight": "44px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-sm": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-md": ["14px", {"lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "600"}]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="flex flex-col min-h-screen">
+<!-- TopNavBar -->
+<nav class="bg-surface/70 backdrop-blur-xl w-full top-0 sticky border-b border-white/10 shadow-xl flex justify-between items-center px-margin-desktop py-md z-50">
+<div class="font-display-lg text-display-lg tracking-tighter text-primary">Pipeline Studio</div>
+<div class="hidden md:flex items-center gap-lg">
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-headline-sm text-headline-sm" href="#">Upload</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-headline-sm text-headline-sm" href="#">Configure</a>
+<a class="text-primary border-b-2 border-primary pb-1 font-headline-sm text-headline-sm" href="#">Monitor</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-headline-sm text-headline-sm" href="#">Compare</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-headline-sm text-headline-sm" href="#">Export</a>
+</div>
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-white/5 p-sm rounded-full transition-all">notifications</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:bg-white/5 p-sm rounded-full transition-all">settings</button>
+<div class="h-10 w-10 rounded-full overflow-hidden border border-primary/30">
+<img alt="User profile" data-alt="A professional studio headshot of a creative technologist, soft cinematic lighting, slight smile, depth of field background with bokeh of server racks and neon lights, reflecting the high-end visionary tech brand identity." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAeUrJ1Bjxvp7Bq9q1d2NsGNWLFhnLcVtJdvkdN6dIiu4EBI52H0rV4Q-KU8P5AX3loi_o3q9oA2nAzjOh6ydTznsBdS9nXClv3TldJaUzwPNLmSe19j_pHoLinK9cgDnh7hi64xvlajKv0V_hgPlXYvuosPpsi8kR2oPBvc_ObVhTcP-w7GPmLsWHBi37xB1v5mMadEJtkzeuuhYcqgfhIBNSV7w6cvhS1KEx5MYiQ4iTYXrX2goZWjTy0zU6Q8nuPCGGX1ckibLQ">
+</div>
+<button class="bg-primary-container text-on-primary-container px-lg py-sm rounded-xl font-label-md text-label-md active:scale-95 duration-200">Deploy Pipeline</button>
+</div>
+</nav>
+<div class="flex flex-1 overflow-hidden">
+<!-- SideNavBar -->
+<aside class="hidden md:flex flex-col h-[calc(100vh-80px)] w-64 left-0 sticky bg-surface-container-low/70 backdrop-blur-xl border-r border-white/5 shadow-2xl p-lg gap-md">
+<div class="flex items-center gap-sm mb-lg">
+<div class="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">auto_fix_high</span>
+</div>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-primary leading-none">ImagePipeline_v1</h2>
+<p class="font-label-md text-label-md text-on-surface-variant">Active Session</p>
+</div>
+</div>
+<nav class="flex flex-col gap-xs">
+<a class="flex items-center gap-sm p-md rounded-lg text-on-surface-variant hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined">cloud_upload</span>
+<span class="font-label-md text-label-md">Assets</span>
+</a>
+<a class="flex items-center gap-sm p-md rounded-lg text-on-surface-variant hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined">auto_fix_high</span>
+<span class="font-label-md text-label-md">Processing</span>
+</a>
+<a class="flex items-center gap-sm p-md rounded-lg bg-primary/10 text-primary border-r-4 border-primary transition-all" href="#">
+<span class="material-symbols-outlined">monitoring</span>
+<span class="font-label-md text-label-md">Analytics</span>
+</a>
+<a class="flex items-center gap-sm p-md rounded-lg text-on-surface-variant hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined">history</span>
+<span class="font-label-md text-label-md">History</span>
+</a>
+<a class="flex items-center gap-sm p-md rounded-lg text-on-surface-variant hover:bg-white/5 transition-all" href="#">
+<span class="material-symbols-outlined">webhook</span>
+<span class="font-label-md text-label-md">Endpoints</span>
+</a>
+</nav>
+<button class="mt-auto bg-primary text-on-primary font-label-md text-label-md py-md rounded-xl shadow-lg hover:shadow-primary/20 transition-all active:scale-95">
+                New Pipeline
+            </button>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 overflow-y-auto bg-surface p-xl space-y-xl">
+<!-- Header Section -->
+<div class="flex justify-between items-end">
+<div>
+<h1 class="font-display-lg text-display-lg text-on-surface">Dynamic Pipeline Monitor</h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant">Real-time execution telemetry and processing flow</p>
+</div>
+<div class="flex gap-md">
+<div class="glass-panel px-lg py-md rounded-xl flex items-center gap-md">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Uptime</span>
+<span class="font-headline-sm text-headline-sm text-primary">02:14:45</span>
+</div>
+<div class="w-px h-10 bg-white/10"></div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">Throughput</span>
+<span class="font-headline-sm text-headline-sm text-secondary">84 req/s</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Pipeline Flow Diagram -->
+<div class="glass-panel rounded-2xl p-xl relative overflow-hidden h-[400px] flex items-center justify-center">
+<!-- Background decorative elements -->
+<div class="absolute inset-0 opacity-10 pointer-events-none">
+<div class="absolute top-0 left-0 w-full h-full" style="background-image: radial-gradient(circle at 2px 2px, rgba(210, 187, 255, 0.2) 1px, transparent 0); background-size: 40px 40px;"></div>
+</div>
+<div class="flex items-center w-full max-w-5xl justify-between relative z-10">
+<!-- Step 1: Khởi động -->
+<div class="flex flex-col items-center gap-md">
+<div class="w-20 h-20 rounded-full bg-[#10b981]/20 border-2 border-[#10b981] flex items-center justify-center text-[#10b981] shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+<span class="material-symbols-outlined text-4xl">check_circle</span>
+</div>
+<div class="text-center">
+<p class="font-label-md text-label-md text-on-surface">Khởi động</p>
+<p class="font-label-sm text-label-sm text-[#10b981]">180ms</p>
+</div>
+</div>
+<!-- Connection 1 -->
+<div class="flex-1 h-1 bg-white/10 relative mx-4">
+<div class="absolute inset-0 bg-[#10b981]"></div>
+</div>
+<!-- Step 2: Resize -->
+<div class="flex flex-col items-center gap-md">
+<div class="w-20 h-20 rounded-full bg-[#10b981]/20 border-2 border-[#10b981] flex items-center justify-center text-[#10b981] shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+<span class="material-symbols-outlined text-4xl">check_circle</span>
+</div>
+<div class="text-center">
+<p class="font-label-md text-label-md text-on-surface">Resize</p>
+<p class="font-label-sm text-label-sm text-[#10b981]">450ms</p>
+</div>
+</div>
+<!-- Connection 2 -->
+<div class="flex-1 h-1 bg-white/10 relative mx-4">
+<div class="absolute inset-0 glow-line"></div>
+</div>
+<!-- Step 3: Bộ lọc (ACTIVE) -->
+<div class="flex flex-col items-center gap-md">
+<div class="w-20 h-20 rounded-full bg-primary/20 border-2 border-primary flex items-center justify-center text-primary pulse-lavender">
+<span class="material-symbols-outlined text-4xl animate-spin" style="animation-duration: 3s;">sync</span>
+</div>
+<div class="text-center">
+<p class="font-label-md text-label-md text-primary font-bold">Bộ lọc</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Processing...</p>
+</div>
+</div>
+<!-- Connection 3 -->
+<div class="flex-1 h-1 bg-white/10 relative mx-4"></div>
+<!-- Step 4: Nén ảnh -->
+<div class="flex flex-col items-center gap-md opacity-40">
+<div class="w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-4xl">compress</span>
+</div>
+<div class="text-center">
+<p class="font-label-md text-label-md text-on-surface-variant">Nén ảnh</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Queued</p>
+</div>
+</div>
+<!-- Connection 4 -->
+<div class="flex-1 h-1 bg-white/10 relative mx-4"></div>
+<!-- Step 5: Hoàn thành -->
+<div class="flex flex-col items-center gap-md opacity-40">
+<div class="w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-on-surface-variant">
+<span class="material-symbols-outlined text-4xl">flag</span>
+</div>
+<div class="text-center">
+<p class="font-label-md text-label-md text-on-surface-variant">Hoàn thành</p>
+<p class="font-label-sm text-label-sm text-on-surface-variant">Waiting</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Grid: Terminal and Stats -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-lg">
+<!-- Terminal logs panel -->
+<div class="lg:col-span-2 glass-panel rounded-2xl overflow-hidden bg-[#050814]/80 flex flex-col h-[400px]">
+<div class="bg-white/5 px-lg py-sm flex justify-between items-center border-b border-white/5">
+<div class="flex items-center gap-sm">
+<div class="flex gap-1.5">
+<div class="w-3 h-3 rounded-full bg-error/50"></div>
+<div class="w-3 h-3 rounded-full bg-secondary/50"></div>
+<div class="w-3 h-3 rounded-full bg-[#10b981]/50"></div>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant ml-md">System Terminal - logs/pipeline_exec.log</span>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer hover:text-white transition-colors">download</span>
+</div>
+<div class="p-lg overflow-y-auto font-mono text-body-sm space-y-2 terminal-scroll text-[#10b981]/90" id="terminal-logs">
+<p class="flex gap-md"><span class="text-white/30">[14:02:11]</span> <span class="text-secondary">[INFO]</span> Initializing serverless function at region: us-east-1</p>
+<p class="flex gap-md"><span class="text-white/30">[14:02:12]</span> <span class="text-secondary">[INFO]</span> Cold boot triggered. Provisioning micro-container...</p>
+<p class="flex gap-md"><span class="text-white/30">[14:02:12]</span> <span class="text-[#10b981]">[SUCCESS]</span> Container ready in 180ms.</p>
+<p class="flex gap-md"><span class="text-white/30">[14:02:13]</span> <span class="text-secondary">[INFO]</span> Source image detected: high_res_gallery_01.jpg (14.2 MB)</p>
+<p class="flex gap-md"><span class="text-white/30">[14:02:13]</span> <span class="text-secondary">[INFO]</span> Applying resize parameters: width=1920, height=auto, method=lanczos3</p>
+<p class="flex gap-md"><span class="text-white/30">[14:02:14]</span> <span class="text-[#10b981]">[SUCCESS]</span> Image resized to 1920x1080 in 450ms.</p>
+<p class="flex gap-md"><span class="text-white/30">[14:02:14]</span> <span class="text-primary-container bg-primary/10 px-1">[PROCESS]</span> Executing dynamic filter set: [Aura, Grain_v2, Sharpness+12]</p>
+<p class="flex gap-md"><span class="text-white/30">[14:02:15]</span> <span class="text-primary-container bg-primary/10 px-1">[PROCESS]</span> Computing pixel matrix for block 42/128...</p>
+<p class="flex gap-md"><span class="text-white/30">[14:02:16]</span> <span class="text-primary-container bg-primary/10 px-1">[PROCESS]</span> Computing pixel matrix for block 84/128...</p>
+<p class="flex gap-md animate-pulse"><span class="text-white/30">[14:02:17]</span> <span class="text-primary-container bg-primary/10 px-1">[PROCESS]</span> Finalizing filter application...</p>
+</div>
+</div>
+<!-- Live Metrics -->
+<div class="glass-panel rounded-2xl p-lg flex flex-col gap-lg">
+<h3 class="font-headline-sm text-headline-sm text-on-surface">Resource Telemetry</h3>
+<div class="space-y-md">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label-md text-label-md text-on-surface-variant">CPU Utilization</span>
+<span class="font-label-md text-label-md text-primary">64%</span>
+</div>
+<div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full w-[64%] transition-all duration-1000"></div>
+</div>
+</div>
+<div class="space-y-md">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label-md text-label-md text-on-surface-variant">Memory Allocation</span>
+<span class="font-label-md text-label-md text-secondary">1.2 GB / 4.0 GB</span>
+</div>
+<div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+<div class="bg-secondary h-full w-[30%] transition-all duration-1000"></div>
+</div>
+</div>
+<div class="space-y-md">
+<div class="flex justify-between items-center mb-xs">
+<span class="font-label-md text-label-md text-on-surface-variant">Network Latency</span>
+<span class="font-label-md text-label-md text-[#10b981]">14ms</span>
+</div>
+<div class="w-full bg-white/5 h-2 rounded-full overflow-hidden">
+<div class="bg-[#10b981] h-full w-[15%] transition-all duration-1000"></div>
+</div>
+</div>
+<div class="mt-auto pt-lg border-t border-white/5">
+<div class="bg-primary/5 rounded-xl p-md border border-primary/10">
+<div class="flex items-center gap-sm mb-sm">
+<span class="material-symbols-outlined text-primary text-sm">info</span>
+<span class="font-label-sm text-label-sm text-primary uppercase tracking-wider">Health Status</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">All serverless nodes operational. Scaling up for high demand detected in cluster 'Asia-South'.</p>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest w-full border-t border-white/5 flex justify-between items-center px-margin-desktop py-lg mt-auto">
+<div class="font-label-md text-label-md text-on-surface">© 2024 Serverless Image Pipeline Studio. Visionary Processing.</div>
+<div class="flex gap-lg">
+<a class="text-on-surface-variant hover:text-secondary transition-colors font-body-sm text-body-sm" href="#">Documentation</a>
+<a class="text-on-surface-variant hover:text-secondary transition-colors font-body-sm text-body-sm" href="#">API Status</a>
+<a class="text-on-surface-variant hover:text-secondary transition-colors font-body-sm text-body-sm" href="#">Support</a>
+<a class="text-on-surface-variant hover:text-secondary transition-colors font-body-sm text-body-sm" href="#">Privacy</a>
+</div>
+</footer>
+<script>
+        // Micro-interaction: Terminal auto-scrolling log simulator
+        const terminal = document.getElementById('terminal-logs');
+        const phrases = [
+            "Optimizing vector maps for 'Aura' filter...",
+            "Validating checksum for chunk 9823-A",
+            "Garbage collection triggered: 14.2MB freed",
+            "Scaling worker group: node-04 added",
+            "Heartbeat received from edge-gateway-7",
+            "Syncing metadata to global store...",
+            "Encrypting output buffer with AES-256",
+            "Pipeline status: STABLE"
+        ];
+        const statusTypes = [
+            { label: "[INFO]", class: "text-secondary" },
+            { label: "[PROCESS]", class: "text-primary-container bg-primary/10 px-1" },
+            { label: "[DEBUG]", class: "text-white/20" }
+        ];
+
+        function addLog() {
+            const time = new Date().toLocaleTimeString('en-GB', { hour12: false });
+            const status = statusTypes[Math.floor(Math.random() * statusTypes.length)];
+            const phrase = phrases[Math.floor(Math.random() * phrases.length)];
+            
+            const logEntry = document.createElement('p');
+            logEntry.className = "flex gap-md opacity-0 transition-opacity duration-500";
+            logEntry.innerHTML = `<span class="text-white/30">[${time}]</span> <span class="${status.class}">${status.label}</span> ${phrase}`;
+            
+            terminal.appendChild(logEntry);
+            
+            // Trigger animation
+            setTimeout(() => logEntry.classList.remove('opacity-0'), 10);
+            
+            // Limit log entries
+            if (terminal.children.length > 20) {
+                terminal.removeChild(terminal.firstChild);
+            }
+            
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        setInterval(addLog, 2500);
+
+        // CPU fluctuation simulator
+        setInterval(() => {
+            const cpuBar = document.querySelector('.bg-primary.h-full');
+            const cpuText = document.querySelector('.text-primary.font-label-md');
+            const newValue = Math.floor(Math.random() * (75 - 55 + 1)) + 55;
+            cpuBar.style.width = newValue + '%';
+            cpuText.textContent = newValue + '%';
+        }, 3000);
+    </script>
+</body></html>
