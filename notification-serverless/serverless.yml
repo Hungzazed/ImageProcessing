@@ -58,12 +58,11 @@ appSync:
   schema: graphql/schema.graphql
 
   dataSources:
-    - type: NONE
-      name: NoneDataSource
+    NoneDataSource:
+      type: NONE
 
   resolvers:
-    - type: Mutation
-      field: publishProgress
+    Mutation.publishProgress:
       kind: UNIT
       dataSource: NoneDataSource
       request: mapping-templates/publishProgress-request.vtl
