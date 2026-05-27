@@ -1,0 +1,120 @@
+service: notification-serverless
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  stage: ${opt:stage, 'dev'}
+  region: ${opt:region, 'us-east-1'}
+
+  # Global environment variables
+  environment:
+    SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+    HISTORY_TABLE: !Ref NotificationHistoryTable
+    APPSYNC_ENDPOINT: { "Fn::GetAtt": [ "GraphQlApi", "GraphQLUrl" ] }
+    APPSYNC_API_KEY: { "Fn::GetAtt": [ "GraphQlApiKey", "ApiKey" ] }
+    EMAIL_FROM: ${self:custom.emailFrom}
+    WEBHOOK_RETRY_LIMIT: '3'
+
+  # IAM Roles for least privilege DynamoDB, SES, and SQS access
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:GetItem
+            - dynamodb:PutItem
+            - dynamodb:Scan
+            - dynamodb:UpdateItem
+          Resource:
+            - !GetAtt SubscriptionsTable.Arn
+            - !GetAtt NotificationHistoryTable.Arn
+        - Effect: Allow
+          Action:
+            - ses:SendEmail
+            - ses:SendRawEmail
+          Resource:
+            - '*' # SES email verification check
+        - Effect: Allow
+          Action:
+            - sqs:ReceiveMessage
+            - sqs:DeleteMessage
+            - sqs:GetQueueAttributes
+          Resource:
+            - !Sub arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:image-pipeline-app-${self:provider.stage}-notification-queue
+
+plugins:
+  - serverless-appsync-plugin
+
+custom:
+  emailFrom: 'noreply@example.com' # Set to a verified AWS SES email address
+
+appSync:
+  name: notification-appsync-${self:provider.stage}
+  authentication:
+    type: API_KEY
+  schema: graphql/schema.graphql
+  dataSources:
+    - type: NONE
+      name: NoneDataSource
+  resolvers:
+    - type: Mutation
+      field: publishProgress
+      dataSource: NoneDataSource
+      request: mapping-templates/publishProgress-request.vtl
+      response: mapping-templates/publishProgress-response.vtl
+
+package:
+  individually: true
+
+functions:
+  sqsConsumer:
+    handler: functions/sqs-consumer/index.handler
+    description: Consumes processing events from SQS NotificationQueue and dispatches them to AppSync and Webhooks/SES
+    timeout: 30
+    package:
+      patterns:
+        - 'functions/sqs-consumer/**'
+        - 'common/**'
+    events:
+      - sqs:
+          arn: !Sub arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:image-pipeline-app-${self:provider.stage}-notification-queue
+          batchSize: 10
+
+resources:
+  Resources:
+    # Subscriptions Database (DynamoDB)
+    SubscriptionsTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${self:provider.stage}-subscriptions
+        AttributeDefinitions:
+          - AttributeName: userId
+            AttributeType: S
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: userId
+            KeyType: HASH
+          - AttributeName: id
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST
+
+    # Notification Delivery Logs (DynamoDB)
+    NotificationHistoryTable:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:service}-${self:provider.stage}-history
+        AttributeDefinitions:
+          - AttributeName: jobId
+            AttributeType: S
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: jobId
+            KeyType: HASH
+          - AttributeName: id
+            KeyType: RANGE
+        BillingMode: PAY_PER_REQUEST

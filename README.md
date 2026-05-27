@@ -1,8 +1,9 @@
 # Hệ thống Xử lý Ảnh Serverless & Dịch vụ Thông báo (A - Z)
 
 Tài liệu này hướng dẫn cách thức hoạt động, luồng xử lý chi tiết từ đầu đến cuối (A - Z), cấu trúc tin nhắn và cách thiết lập/triển khai hai dịch vụ chính:
+
 1. **`image-pipeline-app`**: Hệ thống xử lý ảnh dạng chuỗi (pipeline) bất đồng bộ, chia nhỏ các giai đoạn thành các AWS Lambda functions độc lập, giao tiếp với nhau thông qua AWS SQS và lưu trữ trên AWS S3.
-2. **`notification-service`**: Dịch vụ lắng nghe trạng thái xử lý ảnh qua AWS SQS (long polling) để gửi thông báo (email, webhook) tới người dùng tương ứng với mỗi giai đoạn xử lý.
+2. **`notification-serverless`**: Dịch vụ thông báo serverless hoàn toàn, sử dụng AWS SQS để kích hoạt Lambda, AWS DynamoDB để lưu trữ cấu hình subscription và lịch sử gửi, AWS SES để gửi email, và đặc biệt sử dụng AWS AppSync (GraphQL Subscriptions) để đẩy tiến trình ảnh thời gian thực về client qua WebSocket.
 
 ---
 
@@ -15,12 +16,12 @@ Hệ thống hoạt động theo cơ chế **Event-Driven (Kiến trúc hướng
 | Client | ────────────────────────> | startPipeline (API)|
 +--------+                           +--------------------+
    │                                           │
-   │ (Đăng ký Webhook/Email)                   │ 1. Đẩy vào ResizeQueue
+   │ (Đăng ký/Sub AppSync)                     │ 1. Đẩy vào ResizeQueue
    ▼                                           ▼
-+----------------------+  Lắng nghe SQS  +-------------+       +-------------+
-| notification-service | <────────────── | ResizeQueue | ────> |  01-resize  |
-+----------------------+                 +-------------+       +-------------+
-   │ (Gửi Email/Webhook)                       │                      │
++-------------------------+  Lắng nghe SQS  +-------------+       +-------------+
+| notification-serverless | <────────────── | ResizeQueue | ────> |  01-resize  |
++-------------------------+                 +-------------+       +-------------+
+   │ (Gửi Email/Webhook/AppSync)               │                      │
    │                                           │ 2. Đẩy FilterQueue   │ Tải/Ghi S3
    │                                           ▼                      ▼
    │                                     +-------------+       +-------------+
@@ -75,18 +76,20 @@ Hệ thống hoạt động theo cơ chế **Event-Driven (Kiến trúc hướng
    - Ghi tệp hoàn chỉnh lên S3 `processed/{jobId}/final.[ext]`.
    - Gửi sự kiện kết thúc thành công (`image.completed` hoặc `image.failed`) kèm thông tin dung lượng, kích thước tệp cuối cùng vào **`NotificationQueue`**.
 
-6. **Xử lý thông báo (`notification-service`)**:
-   - Chạy một vòng lặp ngầm (long polling) lắng nghe hàng đợi SQS `NotificationQueue`.
-   - Dịch vụ tự động phân giải (resolve) tên hàng đợi thành URL thực tế bằng AWS API.
-   - Nhận diện các loại sự kiện (`image.processing.started`, `image.resized`, `image.filtered`, `image.watermarked`, `image.completed`, `image.failed`).
-   - Lọc trong MongoDB xem có User hoặc Job nào đăng ký nhận sự kiện này (Webhook hoặc Email) và thực hiện gửi thông báo tương ứng.
+6. **Xử lý thông báo (`notification-serverless`)**:
+   - Lambda `sqsConsumer` được kích hoạt khi hàng đợi SQS `NotificationQueue` nhận sự kiện từ các bước trên.
+   - Thực hiện gọi API AWS AppSync (GraphQL Mutation `publishProgress`) để đẩy dữ liệu thời gian thực cho Client WebSocket đang subscribe.
+   - Truy vấn thông tin cấu hình từ DynamoDB Subscriptions Table để lọc các kênh liên hệ đã đăng ký (email/webhook) của user.
+   - Tự động thực thi gửi Email thông báo (qua AWS SES) hoặc đẩy HTTP Webhook (kèm cơ chế thử lại lũy thừa) và lưu log vào DynamoDB History Table.
 
 ---
 
 ## 2. Cấu trúc dữ liệu sự kiện (Event Schema)
 
 ### A. Payload truyền tải giữa các Stage (SQS Message)
+
 Đây là cấu trúc thông tin chạy xuyên suốt pipeline qua các queue:
+
 ```json
 {
   "jobId": "f9b8c7a6-1234-5678-abcd-ef0123456789",
@@ -97,7 +100,12 @@ Hệ thống hoạt động theo cơ chế **Event-Driven (Kiến trúc hướng
   "options": {
     "resize": { "width": 800, "height": 600, "fit": "cover" },
     "filter": { "type": "sepia" },
-    "watermark": { "type": "text", "text": "Bản quyền 2026", "position": "bottom-right", "opacity": 0.6 },
+    "watermark": {
+      "type": "text",
+      "text": "Bản quyền 2026",
+      "position": "bottom-right",
+      "opacity": 0.6
+    },
     "compression": { "format": "webp", "quality": 85 }
   },
   "metadata": {
@@ -125,7 +133,9 @@ Hệ thống hoạt động theo cơ chế **Event-Driven (Kiến trúc hướng
 ```
 
 ### B. Payload gửi đến Hàng đợi Thông báo (`NotificationQueue`)
+
 Định dạng tương thích với thực thể `IEvent` trong `notification-service`:
+
 ```json
 {
   "eventId": "e9c8b7a6-3210-4789-bcde-0123456789ab",
@@ -151,14 +161,15 @@ Hệ thống hoạt động theo cơ chế **Event-Driven (Kiến trúc hướng
 ## 3. Quy trình Thiết lập & Triển khai nhanh
 
 ### Bước 1: Yêu cầu hệ thống
-- Đã cài đặt Node.js 20+ và MongoDB chạy trên cổng mặc định `27017` (dùng cho dịch vụ thông báo).
-- Đã cấu hình AWS CLI có quyền truy cập SQS và S3 (`aws configure`).
 
-### Bước 2: Deploy ứng dụng xử lý ảnh (`image-pipeline-app`)
-1. Cài đặt các thư viện cho từng function:
+- Đã cài đặt Node.js 20+ và CLI Serverless (`npm install -g serverless@3`).
+- Đã cấu hình CLI AWS có quyền truy cập đầy đủ S3, SQS, DynamoDB, AppSync và SES (`aws configure`).
+
+### Bước 2: Triển khai Ứng dụng Xử lý Ảnh (`image-pipeline-app`)
+
+1. Cài đặt các thư viện phụ thuộc cho từng Lambda Function:
    ```bash
    cd image-pipeline-app
-   # Chạy npm install trong từng thư mục con của functions/
    cd functions/00-start && npm install
    cd ../01-resize && npm install --os=linux --cpu=x64 sharp
    cd ../02-filter && npm install --os=linux --cpu=x64 sharp
@@ -167,78 +178,96 @@ Hệ thống hoạt động theo cơ chế **Event-Driven (Kiến trúc hướng
    cd ../../
    ```
    > [!NOTE]
-   > Lệnh cài đặt `sharp` đính kèm `--os=linux --cpu=x64` giúp đảm bảo thư viện binary của Sharp tương thích tốt với môi trường AWS Lambda chạy trên Linux (tránh lỗi `ELF Header invalid`).
+   > Cài đặt `sharp` bằng các cờ `--os=linux --cpu=x64` giúp mã nguồn chạy tốt khi đóng gói zip tải lên môi trường AWS Lambda Linux x64 mà không gặp lỗi lệch tệp tin nhị phân.
 
-2. Deploy lên AWS bằng Serverless Framework:
+2. Triển khai tài nguyên lên AWS Cloud:
    ```bash
+   cd image-pipeline-app
    serverless deploy --stage dev
+   cd ../
    ```
-   *Lưu ý endpoint HTTP POST nhận về sau khi deploy thành công (ví dụ: `https://xxxx.execute-api.us-east-1.amazonaws.com/dev/process`).*
+   *Lưu ý URL API Gateway trả về ở dòng Output (Ví dụ: `POST https://xxxx.execute-api.us-east-1.amazonaws.com/dev/process`).*
 
-### Bước 3: Khởi chạy Dịch vụ thông báo (`notification-service`)
-1. Chuyển vào thư mục dịch vụ và cài đặt thư viện:
+### Bước 3: Triển khai Dịch vụ Thông báo (`notification-serverless`)
+
+1. Cài đặt các plugin và thư viện phụ thuộc:
    ```bash
-   cd notification-service
+   cd notification-serverless
+   serverless plugin install --name serverless-appsync-plugin
+   
+   cd functions/sqs-consumer
    npm install
+   cd ../../
    ```
-2. Tạo tệp cấu hình môi trường `.env` từ tệp ví dụ:
-   ```bash
-   cp .env.example .env
-   ```
-   Chỉ cần điền các tham số sau trong `.env`:
-   ```env
-   PORT=3000
-   MONGO_URI=mongodb://localhost:27017/notification-db
-   AWS_REGION=us-east-1
-   AWS_ACCESS_KEY_ID=access_key_cua_ban
-   AWS_SECRET_ACCESS_KEY=secret_key_cua_ban
-   ```
-   *(Không cần khai báo URL hàng đợi, dịch vụ sẽ tự động truy vấn tên hàng đợi `image-pipeline-app-dev-notification-queue` để tìm ra URL tương ứng).*
 
-3. Khởi chạy dịch vụ ở chế độ phát triển:
+2. Triển khai dịch vụ lên AWS:
    ```bash
-   npm run dev
+   cd notification-serverless
+   serverless deploy --stage dev
+   cd ../
    ```
+   *Lưu ý ghi lại `GraphQLUrl` (AppSync Endpoint) và API Key trả về ở dòng Output.*
+
+3. Xác thực Email trên AWS SES:
+   Nếu tài khoản AWS đang ở chế độ SES Sandbox, bạn cần vào AWS Console -> SES -> Verified Identities để đăng ký và xác thực email gửi (`noreply@example.com` hoặc cấu hình tùy chỉnh ở `emailFrom` trong `serverless.yml`) và email nhận thông báo thử nghiệm.
 
 ---
 
 ## 4. Kiểm thử tích hợp từ A - Z (End-to-End Test)
 
-1. **Đăng ký nhận thông báo**:
-   Gửi HTTP POST đăng ký nhận webhook hoặc email khi xử lý thành công / thất bại tới `notification-service`:
-   ```bash
-   curl -X POST http://localhost:3000/api/subscriptions \
-     -H "Content-Type: application/json" \
-     -d '{
-       "userId": "user-999",
-       "channel": "email",
-       "destination": "user-email@example.com",
-       "events": ["image.completed", "image.failed"],
-       "isActive": true
-     }'
-   ```
+### Bước 1: Đăng ký nhận thông báo trong CSDL DynamoDB
+Vì hệ thống chạy Serverless và phi trạng thái, bạn đăng ký preferences thông báo bằng cách tạo một Subscription trực tiếp trong DynamoDB thông qua lệnh AWS CLI sau (thay thế địa chỉ email nhận bằng email của bạn đã xác thực ở AWS SES):
+```bash
+aws dynamodb put-item \
+  --table-name notification-serverless-dev-subscriptions \
+  --item '{
+    "userId": {"S": "user-999"},
+    "id": {"S": "sub-111"},
+    "channel": {"S": "email"},
+    "destination": {"S": "email_nhan_tin_nhan@example.com"},
+    "events": {"L": [{"S": "image.completed"}, {"S": "image.failed"}]},
+    "isActive": {"BOOL": true}
+  }'
+```
 
-2. **Tải ảnh lên S3**:
-   Tải một bức ảnh (ví dụ: `nature.jpg`) lên Bucket S3 được tạo bởi Serverless Framework (có tên dạng: `image-pipeline-bucket-dev-<aws-account-id>`).
+### Bước 2: Tải ảnh gốc lên S3
+Tải một ảnh bất kỳ lên Bucket S3 được cấu hình bởi stack của bạn (ví dụ: tên bucket có dạng `image-pipeline-bucket-dev-<aws-account-id>`). Đặt tệp tại thư mục `inputs/nature.jpg`.
 
-3. **Kích hoạt Pipeline**:
-   Gửi yêu cầu xử lý ảnh tới API Gateway của Lambda `startPipeline`:
-   ```bash
-   curl -X POST https://xxxx.execute-api.us-east-1.amazonaws.com/dev/process \
-     -H "Content-Type: application/json" \
-     -d '{
-       "userId": "user-999",
-       "s3Key": "inputs/nature.jpg",
-       "options": {
-         "resize": { "width": 800, "height": 600, "fit": "cover" },
-         "filter": { "type": "sepia" },
-         "watermark": { "type": "text", "text": "Copyright 2026", "position": "bottom-right" },
-         "compression": { "format": "webp", "quality": 80 }
-       }
-     }'
-   ```
-   Nhận về phản hồi: `{"success":true,"message":"...","data":{"jobId":"uuid","imageId":"uuid"}}`.
+### Bước 3: Đăng ký lắng nghe tiến trình thời gian thực (GraphQL Subscription)
+Sử dụng một client hỗ trợ GraphQL (như GraphQL Playground, Apollo Studio Sandbox hoặc Amplify) để đăng ký lắng nghe sự kiện thời gian thực bằng WebSocket sử dụng AppSync GraphQL URL và API Key nhận được ở Bước 3:
+```graphql
+subscription OnProgressUpdate {
+  onProgressUpdate(userId: "user-999") {
+    jobId
+    imageId
+    userId
+    eventType
+    status
+    timestamp
+    metadata
+  }
+}
+```
 
-4. **Kiểm tra kết quả**:
-   - `notification-service` console log sẽ in thông báo nhận được tin nhắn từ SQS, xử lý sự kiện và dispatch email thông báo gửi đi.
-   - S3 Bucket sẽ xuất hiện các tệp trung gian trong thư mục `processed/<jobId>/` và tệp kết quả cuối cùng `final.webp`.
+### Bước 4: Kích hoạt Pipeline xử lý ảnh
+Gửi yêu cầu xử lý ảnh thông qua API Gateway của `image-pipeline-app`:
+```bash
+curl -X POST https://xxxx.execute-api.us-east-1.amazonaws.com/dev/process \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "user-999",
+    "s3Key": "inputs/nature.jpg",
+    "options": {
+      "resize": { "width": 800, "height": 600, "fit": "cover" },
+      "filter": { "type": "sepia" },
+      "watermark": { "type": "text", "text": "Bản Quyền 2026", "position": "bottom-right" },
+      "compression": { "format": "webp", "quality": 80 }
+    }
+  }'
+```
+
+### Bước 5: Kiểm tra kết quả
+- **Real-time GraphQL Subscription**: Client của bạn sẽ lập tức nhận được các bản cập nhật WebSocket cho sự kiện từ `image.processing.started`, `image.resized`, `image.filtered`, `image.watermarked` cho đến `image.completed`.
+- **Email thông báo**: Kiểm tra hòm thư của bạn để xác nhận email thông báo tự động từ AWS SES sau khi quá trình nén hoàn thành.
+- **Dữ liệu S3**: Tệp tin kết quả `final.webp` và các tệp tin trung gian sẽ hiển thị đầy đủ trên AWS S3 tại thư mục `processed/<jobId>/`.
+- **DynamoDB Logs**: Lịch sử gửi thông báo chi tiết được lưu trữ đầy đủ trong bảng `notification-serverless-dev-history`.
