@@ -26,11 +26,8 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Serverless Framework CLI
-        run: npm install -g serverless@3
-
-      - name: Install AppSync plugin
-        run: serverless plugin install --name serverless-appsync-plugin
+      - name: Install Serverless & Plugin dependencies
+        run: npm ci || npm install
 
       - name: Install SQS Consumer dependencies
         run: |
@@ -39,7 +36,7 @@ jobs:
           cd -
 
       - name: Deploy Serverless Service
-        run: serverless deploy --stage prod
+        run: npx serverless deploy --stage prod
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.PIPELINE_AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.PIPELINE_AWS_SECRET_ACCESS_KEY }}
