@@ -43,7 +43,7 @@ provider:
             - sqs:DeleteMessage
             - sqs:GetQueueAttributes
           Resource:
-            - !Sub arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:image-pipeline-app-${self:provider.stage}-notification-queue
+            - arn:aws:sqs:${self:provider.region}:${aws:accountId}:image-pipeline-app-${self:provider.stage}-notification-queue
 
 plugins:
   - serverless-appsync-plugin
@@ -82,7 +82,7 @@ functions:
         - "common/**"
     events:
       - sqs:
-          arn: !Sub arn:aws:sqs:${AWS::Region}:${AWS::AccountId}:image-pipeline-app-${self:provider.stage}-notification-queue
+          arn: arn:aws:sqs:${self:provider.region}:${aws:accountId}:image-pipeline-app-${self:provider.stage}-notification-queue
           batchSize: 10
 
 resources:
