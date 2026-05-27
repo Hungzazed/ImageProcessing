@@ -63,6 +63,7 @@ appSync:
 
   resolvers:
     Mutation.publishProgress:
+      kind: UNIT
       dataSource: NoneDataSource
       request: mapping-templates/publishProgress-request.vtl
       response: mapping-templates/publishProgress-response.vtl
