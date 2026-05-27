@@ -132,24 +132,42 @@ npm install @aws-sdk/client-sqs
 ### Step 2: Implement SQS Consumer
 Create `SQSConsumer.ts` in `notification-service/src/infrastructure/messaging/`:
 ```typescript
-import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand } from '@aws-sdk/client-sqs';
+import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand, GetQueueUrlCommand } from '@aws-sdk/client-sqs';
 import { ProcessEvent } from '../../application/use-cases/ProcessEvent';
 import { config } from '../../config/env';
 
 export class SQSConsumer {
-  private sqs = new SQSClient({ region: config.aws.region });
-  private queueUrl = config.aws.notificationQueueUrl;
+  private sqs: SQSClient;
+  private queueName: string;
+  private queueUrl?: string;
   private processEvent = new ProcessEvent();
   private isRunning = false;
 
+  constructor() {
+    this.sqs = new SQSClient({ region: config.aws.region });
+    this.queueName = config.aws.notificationQueueName;
+  }
+
   async start(): Promise<void> {
     this.isRunning = true;
-    console.log('SQS Consumer started, polling messages...');
+    console.log(`SQS Consumer starting, resolving queue: ${this.queueName}...`);
 
-    while (this.isRunning) {
+    try {
+      const response = await this.sqs.send(new GetQueueUrlCommand({
+        QueueName: this.queueName,
+      }));
+      this.queueUrl = response.QueueUrl;
+      console.log(`Successfully resolved SQS Queue URL: ${this.queueUrl}`);
+    } catch (err: any) {
+      console.error(`Failed to resolve SQS Queue URL:`, err.message);
+      this.isRunning = false;
+      return;
+    }
+
+    while (this.isRunning && this.queueUrl) {
       try {
         const response = await this.sqs.send(new ReceiveMessageCommand({
-          QueueUrl: this.queueUrl,
+          QueueUrl: this.queueUrl!,
           MaxNumberOfMessages: 10,
           WaitTimeSeconds: 20 // Long polling
         }));
@@ -164,12 +182,12 @@ export class SQSConsumer {
 
           // Delete message from queue after processing successfully
           await this.sqs.send(new DeleteMessageCommand({
-            QueueUrl: this.queueUrl,
+            QueueUrl: this.queueUrl!,
             ReceiptHandle: message.ReceiptHandle!
           }));
         }
-      } catch (err) {
-        console.error('Error polling SQS messages', err);
+      } catch (err: any) {
+        console.error('Error polling SQS messages', err.message);
         await new Promise(resolve => setTimeout(resolve, 5000)); // Backoff on error
       }
     }
