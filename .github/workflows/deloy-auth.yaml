@@ -19,10 +19,10 @@ jobs:
           script: |
             cd /opt/apps/ImageProcessing/auth-service
 
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
 
             npm install
 
             sudo systemctl restart auth.service
-
             sudo systemctl status auth.service --no-pager
