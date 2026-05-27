@@ -12,8 +12,8 @@ provider:
   environment:
     SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
     HISTORY_TABLE: !Ref NotificationHistoryTable
-    APPSYNC_ENDPOINT: { "Fn::GetAtt": ["GraphQlApi", "GraphQLUrl"] }
-    APPSYNC_API_KEY: { "Fn::GetAtt": ["GraphQlApiKey", "ApiKey"] }
+    APPSYNC_ENDPOINT: ${appsync:url}
+    APPSYNC_API_KEY: ${appsync:apiKey}
     EMAIL_FROM: ${self:custom.emailFrom}
     WEBHOOK_RETRY_LIMIT: "3"
 
