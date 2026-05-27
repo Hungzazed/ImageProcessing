@@ -327,8 +327,11 @@ exports.googleCallback = async(req, res)=>{
 
         res.clearCookie('oauthRedirectOrigin', { path: '/' });
         
-        // Redirect không có token trên URL
-        res.redirect(`${callbackFrontendUrl}/callback`);
+        // Fallback transfer via URL query avoids callback breakage when browser blocks cross-domain cookie reads.
+        const encodedUser = Buffer.from(userInfo).toString('base64url');
+        const redirectUrl = `${callbackFrontendUrl}/callback?accessToken=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(encodedUser)}`;
+
+        res.redirect(redirectUrl);
     } catch (error) {
         console.error('Google callback error:', error);
         const callbackFrontendUrl = req.oauthFrontendUrl || FRONTEND_URL;
