@@ -62,7 +62,11 @@ export function LoginPage() {
 
       <button
         type="button"
-        onClick={() => window.location.assign(authApi.googleAuthUrl)}
+        onClick={() => {
+          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+          const googleUrl = `${authApi.googleAuthUrl}?origin=${encodeURIComponent(origin)}`;
+          window.location.assign(googleUrl);
+        }}
         className="mb-6 mt-4 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-[#2d3449] bg-[#1e293b]/80 px-6 text-sm font-semibold text-[#dae2fd] transition-all duration-300 hover:bg-[#1e293b]"
       >
         <GoogleIcon className="h-5 w-5 shrink-0" />

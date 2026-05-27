@@ -15,11 +15,24 @@ const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
 const frontendUrl = process.env.FRONTEND_URL;
+const frontendUrls = process.env.FRONTEND_URLS
+    ? process.env.FRONTEND_URLS.split(',').map((url) => url.trim()).filter(Boolean)
+    : [];
+const allowedOrigins = [...new Set([frontendUrl, ...frontendUrls].filter(Boolean))];
 
 app.use(cookieParser());
 
 app.use(cors({
-    origin: [frontendUrl],
+    origin: (origin, callback) => {
+        // Allow non-browser clients (curl/Postman/server-to-server) without Origin header.
+        if (!origin) return callback(null, true);
+
+        if (allowedOrigins.includes(origin)) {
+            return callback(null, true);
+        }
+
+        return callback(new Error('Not allowed by CORS'));
+    },
     credentials: true
 }));
 

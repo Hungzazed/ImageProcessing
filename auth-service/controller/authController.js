@@ -274,6 +274,7 @@ exports.logout = async(req,res)=>{
 exports.googleCallback = async(req, res)=>{
     try {
         const user = req.user;
+        const callbackFrontendUrl = req.oauthFrontendUrl || FRONTEND_URL;
         
         const accessToken = jwt.sign(
             { id: user._id },
@@ -323,12 +324,16 @@ exports.googleCallback = async(req, res)=>{
             path: '/',
             maxAge: 10 * 1000, // 10 giây - chỉ để chuyển data
         });
+
+        res.clearCookie('oauthRedirectOrigin', { path: '/' });
         
         // Redirect không có token trên URL
-        res.redirect(`${FRONTEND_URL}/callback`);
+        res.redirect(`${callbackFrontendUrl}/callback`);
     } catch (error) {
         console.error('Google callback error:', error);
-        res.redirect(`${FRONTEND_URL}/login?error=google_auth_failed`);
+        const callbackFrontendUrl = req.oauthFrontendUrl || FRONTEND_URL;
+        res.clearCookie('oauthRedirectOrigin', { path: '/' });
+        res.redirect(`${callbackFrontendUrl}/login?error=google_auth_failed`);
     }
 }
 
