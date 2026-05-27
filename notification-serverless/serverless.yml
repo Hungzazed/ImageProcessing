@@ -56,9 +56,11 @@ appSync:
   authentication:
     type: API_KEY
   schema: graphql/schema.graphql
+
   dataSources:
     - name: NoneDataSource
       type: NONE
+
   resolvers:
     - type: Mutation
       field: publishProgress
