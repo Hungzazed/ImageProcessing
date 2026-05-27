@@ -5,10 +5,9 @@ export const config = {
   port: process.env.PORT || 3000,
   mongoUri:
     process.env.MONGO_URI || "mongodb://localhost:27017/notification-db",
-  kafka: {
-    brokers: (process.env.KAFKA_BROKERS || "localhost:9092").split(","),
-    clientId: process.env.KAFKA_CLIENT_ID || "notification-service",
-    groupId: process.env.KAFKA_GROUP_ID || "notification-group",
+  aws: {
+    region: process.env.AWS_REGION || "us-east-1",
+    notificationQueueName: process.env.NOTIFICATION_QUEUE_NAME || "image-pipeline-app-dev-notification-queue",
   },
   smtp: {
     host: process.env.SMTP_HOST,

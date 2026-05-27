@@ -1,7 +1,7 @@
 import express from 'express';
 import { config } from './config/env.js';
 import { connectDB } from './infrastructure/database/mongoose.js';
-import { KafkaConsumer } from './infrastructure/messaging/KafkaConsumer.js';
+import { SQSConsumer } from './infrastructure/messaging/SQSConsumer.js';
 import { routes } from './presentation/api/routes.js';
 
 const app = express();
@@ -14,9 +14,9 @@ const start = async () => {
   // Connect to DB
   await connectDB();
 
-  // Start Kafka Consumer
-  const kafkaConsumer = new KafkaConsumer();
-  await kafkaConsumer.connect();
+  // Start SQS Consumer in the background
+  const sqsConsumer = new SQSConsumer();
+  sqsConsumer.start();
 
   // Start Express Server
   app.listen(config.port, () => {
