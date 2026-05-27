@@ -13,7 +13,7 @@ provider:
     SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
     HISTORY_TABLE: !Ref NotificationHistoryTable
     APPSYNC_ENDPOINT: ${appsync:url}
-    APPSYNC_API_KEY: ${appsync:apiKey.DefaultKey}
+    APPSYNC_API_KEY: ${appsync:apiKey.NotificationApiKey}
     EMAIL_FROM: ${self:custom.emailFrom}
     WEBHOOK_RETRY_LIMIT: "3"
 
@@ -56,8 +56,8 @@ appSync:
   authentication:
     type: API_KEY
   apiKeys:
-    - name: DefaultKey
-      description: "Default API Key for Notification AppSync"
+    - name: NotificationApiKey
+      description: "AppSync API Key for Notification AppSync"
   schema: graphql/schema.graphql
 
   dataSources:
