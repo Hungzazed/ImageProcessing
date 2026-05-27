@@ -1,0 +1,343 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Lumina Studio - Image Comparison</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Inter:wght@400;500;600&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-background": "#dae2fd",
+                        "on-tertiary-fixed-variant": "#85145a",
+                        "on-error-container": "#ffdad6",
+                        "on-error": "#690005",
+                        "on-secondary-fixed": "#001f26",
+                        "error-container": "#93000a",
+                        "surface-container": "#0f1530",
+                        "surface-bright": "#31394d",
+                        "on-surface-variant": "#958da1",
+                        "primary-fixed-dim": "#d2bbff",
+                        "surface-dim": "#070d1d",
+                        "primary": "#d2bbff",
+                        "inverse-on-surface": "#283044",
+                        "surface-container-high": "#171f33",
+                        "outline-variant": "#4a4455",
+                        "on-primary-fixed": "#25005a",
+                        "outline": "#958da1",
+                        "tertiary-container": "#ae397b",
+                        "on-tertiary-fixed": "#3d0026",
+                        "surface-variant": "#2d3449",
+                        "error": "#ffb4ab",
+                        "on-tertiary": "#620040",
+                        "tertiary": "#ffafd3",
+                        "secondary-container": "#03b5d3",
+                        "surface-tint": "#d2bbff",
+                        "secondary-fixed-dim": "#4cd7f6",
+                        "secondary-fixed": "#acedff",
+                        "on-primary-container": "#ede0ff",
+                        "on-secondary-fixed-variant": "#004e5c",
+                        "on-primary-fixed-variant": "#5a00c6",
+                        "tertiary-fixed": "#ffd8e7",
+                        "background": "#070d1d",
+                        "on-primary": "#3f008e",
+                        "on-surface": "#dae2fd",
+                        "surface-container-lowest": "#060e20",
+                        "surface-container-highest": "#2d3449",
+                        "on-secondary-container": "#00424e",
+                        "surface": "#070d1d",
+                        "secondary": "#4cd7f6",
+                        "primary-fixed": "#eaddff",
+                        "inverse-primary": "#732ee4",
+                        "inverse-surface": "#dae2fd",
+                        "on-tertiary-container": "#ffdce9",
+                        "primary-container": "#7c3aed",
+                        "surface-container-low": "#131b2e",
+                        "tertiary-fixed-dim": "#ffafd3",
+                        "on-secondary": "#003640"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "base": "4px",
+                        "margin-mobile": "16px",
+                        "lg": "24px",
+                        "gutter": "24px",
+                        "sm": "8px",
+                        "xl": "40px",
+                        "md": "16px",
+                        "margin-desktop": "64px",
+                        "xs": "4px"
+                    },
+                    "fontFamily": {
+                        "headline-sm": ["Plus Jakarta Sans"],
+                        "display-lg": ["Plus Jakarta Sans"],
+                        "display-lg-mobile": ["Plus Jakarta Sans"],
+                        "body-lg": ["Inter"],
+                        "label-sm": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "body-md": ["Inter"],
+                        "label-md": ["Inter"],
+                        "headline-md": ["Plus Jakarta Sans"]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(15, 21, 48, 0.7);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .comparison-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 4px;
+            height: 100vh;
+            background: white;
+            cursor: ew-resize;
+            box-shadow: 0 0 15px rgba(210, 187, 255, 0.8);
+        }
+        .comparison-slider::-moz-range-thumb {
+            width: 4px;
+            height: 100vh;
+            background: white;
+            cursor: ew-resize;
+            box-shadow: 0 0 15px rgba(210, 187, 255, 0.8);
+        }
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(210, 187, 255, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(210, 187, 255, 0.2); }
+        }
+        .image-glow { animation: glow 4s ease-in-out infinite; }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md selection:bg-primary-container selection:text-on-primary-container min-h-screen flex flex-col overflow-x-hidden">
+<!-- TopNavBar -->
+<header class="bg-surface-dim/80 backdrop-blur-xl text-primary w-full top-0 sticky border-b border-white/10 shadow-2xl flex justify-between items-center px-margin-desktop py-md z-50">
+<div class="font-display-lg text-headline-sm tracking-tight text-primary flex items-center gap-sm">
+<span class="material-symbols-outlined text-primary scale-125">auto_videocam</span>
+        Lumina Studio
+    </div>
+<nav class="hidden md:flex items-center gap-lg">
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-label-md" href="#">Upload</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-label-md" href="#">Configure</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-label-md" href="#">Monitor</a>
+<a class="text-primary border-b-2 border-primary pb-1 font-label-md" href="#">Compare</a>
+<a class="text-on-surface-variant hover:text-on-surface transition-colors font-label-md" href="#">Export</a>
+</nav>
+<div class="flex items-center gap-md">
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all duration-300 p-sm rounded-full">search</button>
+<button class="material-symbols-outlined text-on-surface-variant hover:text-on-surface hover:bg-white/5 transition-all duration-300 p-sm rounded-full">help_outline</button>
+<div class="h-8 w-[1px] bg-white/10 mx-xs"></div>
+<div class="flex items-center gap-sm">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-[10px] font-bold text-on-primary-container">JD</div>
+<span class="text-label-sm text-on-surface hidden sm:block">John Doe</span>
+</div>
+</div>
+</header>
+<div class="flex flex-1 relative">
+<!-- SideNavBar -->
+<aside class="bg-surface-container/40 backdrop-blur-xl text-primary h-[calc(100vh-72px)] w-64 left-0 sticky border-r border-white/5 flex flex-col p-lg gap-md hidden lg:flex">
+<div class="flex flex-col gap-xs">
+<div class="text-label-sm text-on-surface-variant uppercase tracking-widest mb-sm px-md">Workflow</div>
+<a class="flex items-center gap-md p-md rounded-xl text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined">folder_open</span> Assets
+            </a>
+<a class="flex items-center gap-md p-md rounded-xl text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined">settings_suggest</span> Pipeline
+            </a>
+<a class="flex items-center gap-md p-md rounded-xl bg-primary/10 text-primary border-r-4 border-primary shadow-[inset_0_0_20px_rgba(210,187,255,0.05)] transition-all" href="#">
+<span class="material-symbols-outlined">compare</span> Comparison
+            </a>
+<a class="flex items-center gap-md p-md rounded-xl text-on-surface-variant hover:bg-white/5 hover:text-on-surface transition-all" href="#">
+<span class="material-symbols-outlined">history</span> History
+            </a>
+</div>
+<div class="mt-auto p-md glass-card rounded-xl">
+<div class="flex items-center gap-sm mb-sm">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="text-label-sm text-on-surface">Pro Account</span>
+</div>
+<div class="w-full bg-white/5 h-1 rounded-full overflow-hidden mb-xs">
+<div class="bg-secondary w-3/4 h-full"></div>
+</div>
+<div class="text-[10px] text-on-surface-variant">750GB / 1TB Used</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="flex-1 p-lg lg:p-xl bg-background overflow-y-auto">
+<div class="max-w-[1600px] mx-auto flex flex-col gap-xl">
+<!-- Header Section -->
+<div class="flex flex-col gap-sm">
+<div class="flex items-center gap-sm text-primary text-label-sm uppercase tracking-widest">
+<span>Step 4</span>
+<span class="material-symbols-outlined scale-75">chevron_right</span>
+<span>Interactive Analysis</span>
+</div>
+<h1 class="font-display-lg text-display-lg-mobile md:text-display-lg text-on-surface">Image Quality Comparison</h1>
+<p class="font-body-lg text-on-surface-variant max-w-2xl">Validate the visionary AI enhancement and WebP optimization performance for ImagePipeline_v1.</p>
+</div>
+<!-- Dashboard Grid -->
+<div class="grid grid-cols-12 gap-gutter">
+<!-- Comparison Tool -->
+<div class="col-span-12 xl:col-span-8 flex flex-col gap-lg">
+<div class="relative w-full aspect-video glass-panel rounded-2xl overflow-hidden image-glow">
+<!-- Bottom Layer: Processed -->
+<div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://lh3.googleusercontent.com/aida/ADBb0uhVN5nLH0IOIGeG4pTyH3cCYxrL_38c8P7NFbjbuvloQVZyF0uGtt36X1b11S0Kiz9ZkqF2RdIbDjjkIIuasEwHRPtOZriCJbl2vK_8RgBZYeeRj6Lw6jhq0JoHYeaWKiZw7BlHzRlJ3M5Wmg0U89YqSVxK70JNI6B3zzNB91m67QhRXlDrKWQVNoHSDbWblx9NKrc6wSk7zZkhXE25CwWB7ZIJE2L_J378U8yUspaCQEn66AzQjZVxB1A');"></div>
+<!-- Top Layer: Raw (Clipped) -->
+<div class="absolute inset-0 bg-cover bg-center overflow-hidden grayscale contrast-125 brightness-75" id="before-image" style="background-image: url('https://lh3.googleusercontent.com/aida/ADBb0uhVN5nLH0IOIGeG4pTyH3cCYxrL_38c8P7NFbjbuvloQVZyF0uGtt36X1b11S0Kiz9ZkqF2RdIbDjjkIIuasEwHRPtOZriCJbl2vK_8RgBZYeeRj6Lw6jhq0JoHYeaWKiZw7BlHzRlJ3M5Wmg0U89YqSVxK70JNI6B3zzNB91m67QhRXlDrKWQVNoHSDbWblx9NKrc6wSk7zZkhXE25CwWB7ZIJE2L_J378U8yUspaCQEn66AzQjZVxB1A'); width: 50%;">
+<div class="absolute inset-0 bg-surface-dim/20"></div>
+</div>
+<!-- Labels Overlay -->
+<div class="absolute top-md left-md bg-surface-dim/80 backdrop-blur-md px-md py-xs rounded-full border border-white/10 text-label-sm uppercase tracking-widest">Raw Source</div>
+<div class="absolute top-md right-md bg-primary-container/80 backdrop-blur-md px-md py-xs rounded-full border border-white/10 text-on-primary-container text-label-sm uppercase tracking-widest">AI Enhanced (WebP)</div>
+<!-- Comparison Slider Control -->
+<input class="comparison-slider absolute inset-0 w-full h-full opacity-0 cursor-ew-resize z-30" id="comparison-slider" max="100" min="0" type="range" value="50">
+<!-- Visual Slider Line -->
+<div class="absolute top-0 bottom-0 w-[2px] bg-primary z-20 pointer-events-none shadow-[0_0_15px_rgba(210,187,255,0.8)]" id="slider-line" style="left: 50%;">
+<div class="absolute top-1/2 -left-5 -translate-y-1/2 w-10 h-10 rounded-full bg-primary flex items-center justify-center shadow-2xl border-4 border-surface-container">
+<span class="material-symbols-outlined text-surface-container font-bold text-sm">unfold_more</span>
+</div>
+</div>
+</div>
+<!-- Bottom Toolstrip -->
+<div class="flex flex-wrap items-center justify-between gap-md glass-card rounded-2xl p-md px-lg">
+<div class="flex items-center gap-lg">
+<button class="flex items-center gap-sm text-on-surface-variant hover:text-on-surface transition-colors font-label-md">
+<span class="material-symbols-outlined">zoom_in_map</span>
+                                Inspector
+                            </button>
+<button class="flex items-center gap-sm text-on-surface-variant hover:text-on-surface transition-colors font-label-md">
+<span class="material-symbols-outlined">palette</span>
+                                Color Space
+                            </button>
+<button class="flex items-center gap-sm text-on-surface-variant hover:text-on-surface transition-colors font-label-md">
+<span class="material-symbols-outlined">difference</span>
+                                Heatmap
+                            </button>
+</div>
+<div class="flex items-center gap-md">
+<span class="text-label-sm text-on-surface-variant">Pipeline Artifacting Index: <span class="text-secondary">Low (1.2)</span></span>
+</div>
+</div>
+</div>
+<!-- Metrics Sidebar -->
+<div class="col-span-12 xl:col-span-4 flex flex-col gap-gutter">
+<!-- Efficiency Panel -->
+<div class="glass-panel rounded-2xl p-xl flex flex-col gap-lg relative overflow-hidden group">
+<div class="absolute -top-16 -right-16 w-48 h-48 bg-primary/5 rounded-full blur-3xl group-hover:bg-primary/10 transition-all duration-700"></div>
+<div class="flex flex-col gap-xs">
+<h3 class="font-headline-sm text-on-surface">Optimization Efficiency</h3>
+<p class="text-label-sm text-on-surface-variant">Compression vs Quality retention</p>
+</div>
+<div class="relative w-48 h-48 mx-auto flex items-center justify-center my-lg">
+<svg class="w-full h-full -rotate-90">
+<circle class="text-white/5" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-width="12"></circle>
+<circle class="text-primary drop-shadow-[0_0_12px_rgba(210,187,255,0.4)]" cx="96" cy="96" fill="transparent" r="80" stroke="currentColor" stroke-dasharray="502.6" stroke-dashoffset="125.6" stroke-linecap="round" stroke-width="14"></circle>
+</svg>
+<div class="absolute flex flex-col items-center">
+<span class="font-display-lg text-display-lg text-primary">75%</span>
+<span class="text-label-sm text-on-surface-variant uppercase tracking-tighter">Reduction</span>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-md">
+<div class="glass-card p-lg rounded-xl flex flex-col gap-xs border-white/5">
+<span class="text-label-sm text-on-surface-variant">Original</span>
+<span class="font-headline-sm text-on-surface">3.5 MB</span>
+</div>
+<div class="glass-card p-lg rounded-xl flex flex-col gap-xs border-primary/20 bg-primary/5">
+<span class="text-label-sm text-primary">Optimized</span>
+<span class="font-headline-sm text-primary">875 KB</span>
+</div>
+</div>
+</div>
+<!-- Pipeline Specs -->
+<div class="glass-panel rounded-2xl p-lg flex flex-col gap-md">
+<div class="flex items-center justify-between p-md rounded-xl bg-white/5 border border-white/5">
+<div class="flex items-center gap-md">
+<span class="material-symbols-outlined text-secondary">speed</span>
+<span class="font-label-md text-on-surface">Execution Time</span>
+</div>
+<span class="font-headline-sm text-secondary">850ms</span>
+</div>
+<div class="space-y-sm px-sm">
+<span class="text-label-sm text-on-surface-variant uppercase tracking-widest">Metadata Summary</span>
+<div class="grid grid-cols-2 gap-sm">
+<div class="flex items-center gap-md text-on-surface text-body-sm">
+<span class="material-symbols-outlined text-on-surface-variant scale-75">aspect_ratio</span>
+                                    1200x800px
+                                </div>
+<div class="flex items-center gap-md text-on-surface text-body-sm">
+<span class="material-symbols-outlined text-on-surface-variant scale-75">category</span>
+                                    WebP Lossy
+                                </div>
+<div class="flex items-center gap-md text-on-surface text-body-sm">
+<span class="material-symbols-outlined text-on-surface-variant scale-75">high_quality</span>
+                                    Q-Factor: 85
+                                </div>
+<div class="flex items-center gap-md text-on-surface text-body-sm">
+<span class="material-symbols-outlined text-on-surface-variant scale-75">cloud_done</span>
+                                    Sync-to-S3
+                                </div>
+</div>
+</div>
+<div class="flex flex-col gap-sm mt-lg">
+<button class="w-full py-md rounded-xl bg-primary text-on-primary font-label-md flex items-center justify-center gap-md hover:brightness-110 active:scale-[0.98] transition-all shadow-xl shadow-primary/20">
+<span class="material-symbols-outlined">download</span> DOWNLOAD FINAL IMAGE
+                            </button>
+<button class="w-full py-md rounded-xl border border-white/20 text-on-surface font-label-md flex items-center justify-center gap-md hover:bg-white/5 transition-all">
+<span class="material-symbols-outlined text-body-md">content_copy</span> COPY S3 URL
+                            </button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Footer -->
+<footer class="bg-surface-dim border-t border-white/10 px-margin-desktop py-lg flex flex-col md:flex-row justify-between items-center gap-md z-50">
+<div class="text-label-sm text-on-surface-variant">© 2024 Lumina Studio. Powered by Serverless Cloud Architecture.</div>
+<div class="flex items-center gap-lg">
+<a class="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">API Status: <span class="text-secondary">Operational</span></a>
+<a class="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Documentation</a>
+<a class="text-label-sm text-on-surface-variant hover:text-primary transition-colors" href="#">Support</a>
+</div>
+</footer>
+<script>
+    const slider = document.getElementById('comparison-slider');
+    const beforeImg = document.getElementById('before-image');
+    const sliderLine = document.getElementById('slider-line');
+
+    slider.addEventListener('input', (e) => {
+        const value = e.target.value;
+        beforeImg.style.width = `${value}%`;
+        sliderLine.style.left = `${value}%`;
+    });
+
+    // Hover sound/haptic placeholders
+    document.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('mouseenter', () => {
+            // Future expansion: Audio feedback
+        });
+    });
+</script>
+</body></html>
