@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { pipelineApi, PipelineOptions } from '@/api/pipelineApi';
 import { useAppSyncSubscription, ProgressEvent } from '@/hooks/useAppSyncSubscription';
 
@@ -17,6 +18,7 @@ type UploadedFile = {
   size: string;
   resolution: string;
   previewUrl: string;
+  s3Key?: string;
 };
 
 type LogMessage = {
@@ -33,6 +35,8 @@ export default function DashboardPage() {
 
   // Active file details
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [s3Uploaded, setS3Uploaded] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -177,32 +181,57 @@ export default function DashboardPage() {
     enabled: isProcessing,
   });
 
-  // Mock upload logic
-  const handleFiles = (files: FileList | null) => {
+  // Real S3 upload logic on file selection
+  const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
+    setSelectedFile(file);
     setIsUploading(true);
     setUploadProgress(0);
 
-    const interval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setIsUploading(false);
-            setUploadedFile({
-              name: file.name,
-              size: formatBytes(file.size),
-              resolution: '1920 x 1080px',
-              previewUrl: URL.createObjectURL(file),
-            });
-            setStep(2); // Auto proceed to configure screen
-          }, 400);
-          return 100;
-        }
-        return prev + 10;
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Perform real S3 upload via Next.js proxy route with upload progress
+      const response = await axios.post('/api/upload', formData, {
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total) {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(percentCompleted);
+          }
+        },
       });
-    }, 80);
+
+      if (response.data?.success) {
+        setIsUploading(false);
+        setS3Uploaded(true);
+        setUploadedFile({
+          name: file.name,
+          size: formatBytes(file.size),
+          resolution: '1920 x 1080px',
+          previewUrl: URL.createObjectURL(file),
+          s3Key: response.data.key,
+        });
+        setStep(2); // Auto proceed to configure screen
+      } else {
+        throw new Error(response.data?.error || 'S3 upload failed');
+      }
+    } catch (err: any) {
+      console.warn('Real S3 upload failed, falling back to local sandbox:', err.message);
+      setIsUploading(false);
+      setS3Uploaded(false);
+      setUploadProgress(0); // Reset progress on error
+      
+      // Still allow them to use the app in offline/simulation mode
+      setUploadedFile({
+        name: file.name,
+        size: formatBytes(file.size),
+        resolution: '1920 x 1080px',
+        previewUrl: URL.createObjectURL(file),
+      });
+      setStep(2);
+    }
   };
 
   // Run Pipeline Execution
@@ -240,7 +269,30 @@ export default function DashboardPage() {
     setJobId(simulatedJobId);
     setImageId(simulatedImageId);
 
-    // Call real EC2 API gateway in the background
+    // 1. Verify S3 original file status
+    if (s3Uploaded) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          stage: 'startPipeline',
+          message: `Verified original image on AWS S3: inputs/${uploadedFile.name}`,
+          status: 'success',
+        },
+      ]);
+    } else {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          stage: 'startPipeline',
+          message: `AWS S3 source asset missing (Upload failed/skipped). Running in simulation/fallback mode.`,
+          status: 'error',
+        },
+      ]);
+    }
+
+    // 2. Call real EC2 API gateway in the background
     try {
       const options: PipelineOptions = {};
       if (enableResize) {
@@ -263,7 +315,7 @@ export default function DashboardPage() {
 
       await pipelineApi.startProcess({
         userId: user?.id || 'user-999',
-        s3Key: `inputs/${uploadedFile.name}`,
+        s3Key: uploadedFile.s3Key || `inputs/${uploadedFile.name}`,
         options,
       });
 
@@ -277,6 +329,15 @@ export default function DashboardPage() {
         },
       ]);
     } catch (err: any) {
+      setLogs((prev) => [
+        ...prev,
+        {
+          timestamp: new Date().toLocaleTimeString(),
+          stage: 'startPipeline',
+          message: `API Gateway trigger failed: ${err.message}. Falling back to Sandbox Simulation mode...`,
+          status: 'error',
+        },
+      ]);
       console.warn('API Gateway POST failed, using simulation mode:', err.message);
     }
 
