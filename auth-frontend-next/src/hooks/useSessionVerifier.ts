@@ -18,22 +18,29 @@ export default function useSessionVerifier(onInvalidSession: () => void) {
   }, [onInvalidSession]);
 
   useEffect(() => {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
+    const storedToken = localStorage.getItem('authToken');
+    if (!storedToken) {
       dispatch(clearSession());
       onInvalidSessionRef.current();
       setLoading(false);
       return;
     }
 
+    const token = storedToken!;
+
     let alive = true;
 
     async function verify() {
       try {
-        const payload = await authApi.verifyToken(token);
+        const payload = await authApi.verifyToken(token as string);
         if (!alive) return;
-        authStorage.saveSession(token, payload.user);
-        dispatch(setSession({ accessToken: token, user: payload.user }));
+
+        const email = payload.user && payload.user.email ? String(payload.user.email) : '';
+        const profile = await authApi.getUserByEmail(email);
+        const mergedUser = authApi.mergeAuthAndProfile(payload.user, profile);
+
+        authStorage.saveSession(token, mergedUser);
+        dispatch(setSession({ accessToken: token, user: mergedUser }));
       } catch {
         authStorage.clearSession();
         dispatch(clearSession());

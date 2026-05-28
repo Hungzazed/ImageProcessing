@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/api/authApi';
@@ -12,12 +12,32 @@ export function VerifyOtpPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [form, setForm] = useState({
-    email: searchParams.get('email') || sessionStorage.getItem('pendingRegistrationEmail') || '',
+    email: searchParams?.get('email') || '',
     otp: '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    if (form.email) return;
+
+    const pendingEmail = sessionStorage.getItem('pendingRegistrationEmail');
+    if (pendingEmail) {
+      setForm((current) => ({ ...current, email: pendingEmail }));
+    }
+  }, [form.email]);
+
+  const readPendingRegistration = () => {
+    const rawData = sessionStorage.getItem('pendingRegistrationData');
+    if (!rawData) return null;
+
+    try {
+      return JSON.parse(rawData) as { name?: string; email?: string; phoneNumber?: string };
+    } catch {
+      return null;
+    }
+  };
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -26,8 +46,37 @@ export function VerifyOtpPage() {
 
     try {
       await authApi.verifyOtp(form);
+
+      const pendingRegistration = readPendingRegistration();
+      const name = pendingRegistration?.name?.trim() || '';
+      const phoneNumber = pendingRegistration?.phoneNumber?.trim() || '';
+
+      if (!name || !phoneNumber) {
+        throw new Error('Không tìm thấy thông tin đăng ký tạm để tạo hồ sơ người dùng.');
+      }
+
+      try {
+        await authApi.createUser({
+          ...authApi.prepareUserPayload({
+            name,
+            email: form.email,
+            password: '',
+            phoneNumber,
+          }),
+          phoneNumber,
+        });
+      } catch (createUserError: any) {
+        const message = createUserError?.message || '';
+        const isDuplicate = /exists|tồn tại|already/i.test(message);
+
+        if (!isDuplicate) {
+          throw createUserError;
+        }
+      }
+
       sessionStorage.removeItem('pendingRegistrationEmail');
-      setSuccess('Xác thực thành công. Đang chuyển về màn hình đăng nhập...');
+      sessionStorage.removeItem('pendingRegistrationData');
+      setSuccess('Xác thực và tạo hồ sơ người dùng thành công. Đang chuyển về màn hình đăng nhập...');
       setTimeout(() => router.push(`/login?verified=1&email=${encodeURIComponent(form.email)}`), 900);
     } catch (submitError: any) {
       setError(submitError.message);
@@ -60,4 +109,8 @@ export function VerifyOtpPage() {
       </form>
     </AuthCardLayout>
   );
+}
+
+export default function Page() {
+  return null;
 }

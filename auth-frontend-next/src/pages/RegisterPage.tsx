@@ -11,7 +11,7 @@ import { authApi } from '@/api/authApi';
 
 export function RegisterPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', phoneNumber: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,6 +26,15 @@ export function RegisterPage() {
         email: form.email,
         password: form.password,
       });
+
+      sessionStorage.setItem(
+        'pendingRegistrationData',
+        JSON.stringify({
+          name: form.name,
+          email: form.email,
+          phoneNumber: form.phoneNumber.trim(),
+        })
+      );
 
       sessionStorage.setItem('pendingRegistrationEmail', form.email);
       router.push(`/verify?email=${encodeURIComponent(form.email)}`);
@@ -66,6 +75,15 @@ export function RegisterPage() {
           autoComplete="email"
         />
         <InputField
+          label="Số điện thoại"
+          type="tel"
+          placeholder="0901234567"
+          value={form.phoneNumber}
+          onChange={(event) => setForm((current) => ({ ...current, phoneNumber: event.target.value }))}
+          autoComplete="tel"
+          required
+        />
+        <InputField
           label="Mật khẩu"
           type="password"
           placeholder="••••••••"
@@ -93,4 +111,8 @@ export function RegisterPage() {
       </div>
     </AuthSplitLayout>
   );
+}
+
+export default function Page() {
+  return null;
 }

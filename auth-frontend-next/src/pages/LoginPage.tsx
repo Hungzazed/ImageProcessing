@@ -25,8 +25,8 @@ export function LoginPage() {
   const [error, setError] = useState('');
 
   const statusMessage = useMemo(() => {
-    if (searchParams.get('verified') === '1') return 'Email đã xác thực. Bạn có thể đăng nhập ngay.';
-    if (searchParams.get('reset') === '1') return 'Mật khẩu đã được đặt lại. Hãy đăng nhập lại.';
+    if (searchParams?.get('verified') === '1') return 'Email đã xác thực. Bạn có thể đăng nhập ngay.';
+    if (searchParams?.get('reset') === '1') return 'Mật khẩu đã được đặt lại. Hãy đăng nhập lại.';
     return '';
   }, [searchParams]);
 
@@ -37,8 +37,12 @@ export function LoginPage() {
 
     try {
       const result = await authApi.login(form);
-      authStorage.saveSession(result.accessToken, result.user);
-      dispatch(setSession({ accessToken: result.accessToken, user: result.user }));
+
+      const profile = await authApi.getUserByEmail(result.user?.email || form.email);
+      const sessionUser = authApi.mergeAuthAndProfile(result.user, profile);
+
+      authStorage.saveSession(result.accessToken, sessionUser);
+      dispatch(setSession({ accessToken: result.accessToken, user: sessionUser }));
       router.push('/dashboard');
     } catch (submitError: any) {
       setError(submitError.message);
@@ -131,4 +135,8 @@ export function LoginPage() {
       </div>
     </AuthSplitLayout>
   );
+}
+
+export default function Page() {
+  return null;
 }
