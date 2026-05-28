@@ -1,3 +1,5 @@
+'use client';
+
 import AuthHeroPanel from '@/components/auth/AuthHeroPanel';
 
 export default function AuthSplitLayout({
@@ -12,14 +14,8 @@ export default function AuthSplitLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen w-full overflow-hidden bg-[#0b1326] text-[#dae2fd]">
-      <header className="fixed left-0 top-0 z-50 flex w-full items-center px-4 py-4 md:px-16 md:py-6">
-        <div className="font-['Plus_Jakarta_Sans'] text-2xl font-bold tracking-[-0.04em] text-[#d2bbff] md:text-3xl">
-          Lumina Studio
-        </div>
-      </header>
-
-      <main className="flex flex-1 items-stretch pt-24 md:pt-0">
+    <div className="relative flex h-full min-h-full w-full overflow-hidden bg-[#0b1326] text-[#dae2fd]">
+      <main className="flex flex-1 items-stretch">
         <div className="grid h-full w-full lg:grid-cols-[1.02fr_0.98fr]">
           <AuthHeroPanel image={image} title={heroTitle} subtitle={heroSubtitle} />
 

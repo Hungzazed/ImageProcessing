@@ -25,7 +25,7 @@ export function DashboardPage() {
   }
 
   if (loading) {
-    return <div className="flex min-h-screen items-center justify-center bg-[#070d1d] text-[#dae2fd]">Đang kiểm tra phiên đăng nhập...</div>;
+    return <div className="flex min-h-screen items-center justify-center bg-[#070d1d] text-[#dae2fd]">Checking sign-in session...</div>;
   }
 
   return (
@@ -33,10 +33,10 @@ export function DashboardPage() {
       <div className="mx-auto max-w-5xl rounded-3xl border border-white/10 bg-[#0f1530] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.42)] sm:p-8">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="font-['Plus_Jakarta_Sans'] text-3xl font-semibold text-white">Tài khoản đang hoạt động</h1>
-            <p className="mt-2 text-[#ccc3d8]">Phiên này đã được xác thực với auth-service.</p>
+            <h1 className="font-['Plus_Jakarta_Sans'] text-3xl font-semibold text-white">Active account</h1>
+            <p className="mt-2 text-[#ccc3d8]">This session is authenticated with auth-service.</p>
           </div>
-          <button className="rounded-xl border border-red-300/40 px-4 py-2 text-sm text-red-200" onClick={handleLogout}>Đăng xuất</button>
+          <button className="rounded-xl border border-red-300/40 px-4 py-2 text-sm text-red-200" onClick={handleLogout}>Sign out</button>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-2">

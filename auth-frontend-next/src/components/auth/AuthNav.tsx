@@ -15,13 +15,13 @@ export default function AuthNav({ active = 'login' }: Props) {
         Sign In
       </Link>
       <Link className={linkClass('register')} href="/register">
-        Join Now
+        Create Account
       </Link>
       <Link
         className="rounded-full bg-[#7c3aed] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
         href="/dashboard"
       >
-        Get Started
+        Open Dashboard
       </Link>
     </div>
   );

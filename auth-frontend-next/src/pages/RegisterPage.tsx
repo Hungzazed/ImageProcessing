@@ -37,11 +37,11 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthSplitLayout image={registerImage.src} heroTitle="Sáng tạo không giới hạn." heroSubtitle="Khám phá tiềm năng sáng tạo của bạn với bộ công cụ AI tiên tiến nhất. Biến mọi ý tưởng thành hiện thực với độ chính xác và nghệ thuật tuyệt đối.">
+    <AuthSplitLayout image={registerImage.src} heroTitle="Unlimited creation." heroSubtitle="Unlock your creative potential with advanced AI tools that turn every idea into polished reality.">
       <div className="space-y-2 text-center lg:text-left">
-        <p className="font-['Plus_Jakarta_Sans'] text-5xl font-extrabold tracking-[-0.04em] text-[#d2bbff] sm:text-6xl">ĐĂNG KÝ</p>
-        <h1 className="mt-4 font-['Plus_Jakarta_Sans'] text-[30px] font-semibold leading-[38px] text-white">Bắt đầu hành trình sáng tạo</h1>
-        <p className="text-[16px] leading-6 text-[#ccc3d8]">Tham gia cộng đồng hàng triệu nhiếp ảnh gia và nhà sáng tạo</p>
+        <p className="font-['Plus_Jakarta_Sans'] text-5xl font-extrabold tracking-[-0.04em] text-[#d2bbff] sm:text-6xl">SIGN UP</p>
+        <h1 className="mt-4 font-['Plus_Jakarta_Sans'] text-[30px] font-semibold leading-[38px] text-white">Start your creative journey</h1>
+        <p className="text-[16px] leading-6 text-[#ccc3d8]">Join a community of millions of photographers and creators.</p>
       </div>
 
       <div className="mt-4">
@@ -50,9 +50,9 @@ export function RegisterPage() {
 
       <form className="space-y-4 pt-4" onSubmit={handleSubmit}>
         <InputField
-          label="Họ tên"
+          label="Full name"
           type="text"
-          placeholder="Nhập họ tên của bạn"
+          placeholder="Enter your full name"
           value={form.name}
           onChange={(event) => setForm((current) => ({ ...current, name: event.target.value }))}
           autoComplete="name"
@@ -66,7 +66,7 @@ export function RegisterPage() {
           autoComplete="email"
         />
         <InputField
-          label="Mật khẩu"
+          label="Password"
           type="password"
           placeholder="••••••••"
           value={form.password}
@@ -77,18 +77,18 @@ export function RegisterPage() {
         <div className="flex items-start gap-3 pt-1">
           <input className="mt-1 rounded border-[#4a4455] bg-[#171f33] text-[#7c3aed] focus:ring-[#7c3aed]" id="terms" type="checkbox" />
           <label className="text-sm leading-6 text-[#ccc3d8]" htmlFor="terms">
-            Tôi đồng ý với <a className="text-[#d2bbff] hover:underline" href="#">Điều khoản</a> và <a className="text-[#d2bbff] hover:underline" href="#">Chính sách</a> bảo mật của Lumina Studio.
+            I agree to Lumina Studio's <a className="text-[#d2bbff] hover:underline" href="#">Terms</a> and <a className="text-[#d2bbff] hover:underline" href="#">Privacy Policy</a>.
           </label>
         </div>
 
         <button type="submit" disabled={loading} className="w-full rounded-xl bg-[#7c3aed] py-3 text-sm font-bold text-white shadow-lg shadow-[#7c3aed]/20 transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60">
-          {loading ? 'Đang tạo tài khoản...' : 'Tạo tài khoản'}
+          {loading ? 'Creating account...' : 'Create account'}
         </button>
       </form>
 
       <div className="mt-6 text-center">
         <p className="text-sm text-[#ccc3d8]">
-          Đã có tài khoản? <Link className="font-bold text-[#d2bbff] hover:underline" href="/login">Đăng nhập</Link>
+          Already have an account? <Link className="font-bold text-[#d2bbff] hover:underline" href="/login">Sign in</Link>
         </p>
       </div>
     </AuthSplitLayout>

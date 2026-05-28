@@ -32,12 +32,12 @@ export function ForgotPasswordPage() {
   return (
     <AuthCardLayout
       eyebrow="Password recovery"
-      title="Quên mật khẩu"
-      subtitle="Nhập email để nhận liên kết đặt lại mật khẩu"
+      title="Forgot password"
+      subtitle="Enter your email to receive a password reset link."
       footer={
         <div className="flex items-center justify-between text-sm text-[#ccc3d8]">
-          <Link href="/login">Về đăng nhập</Link>
-          <Link href="/register">Tạo tài khoản mới</Link>
+          <Link href="/login">Back to sign in</Link>
+          <Link href="/register">Create new account</Link>
         </div>
       }
     >
@@ -48,7 +48,7 @@ export function ForgotPasswordPage() {
 
       <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
         <InputField label="Email" type="email" placeholder="you@example.com" value={form.email} onChange={(event) => setForm({ email: event.target.value })} autoComplete="email" />
-        <button className="w-full rounded-xl bg-[#7c3aed] py-3 text-sm font-bold text-white" type="submit" disabled={loading}>{loading ? 'Đang gửi mail...' : 'Gửi link reset'}</button>
+        <button className="w-full rounded-xl bg-[#7c3aed] py-3 text-sm font-bold text-white" type="submit" disabled={loading}>{loading ? 'Sending email...' : 'Send reset link'}</button>
       </form>
     </AuthCardLayout>
   );

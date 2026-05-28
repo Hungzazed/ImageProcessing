@@ -1,11 +1,10 @@
 import axios from 'axios';
 import { getSharedSession } from '@/utils/session';
+import { getProdGatewayBaseUrl } from '@/utils/gatewayUrls';
 
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
-export const API_BASE_URL = stripTrailingSlash(
-  process.env.NEXT_PUBLIC_GATEWAY_URL || 'http://18.138.103.214/api/v1'
-);
+export const API_BASE_URL = typeof window !== 'undefined' ? '/api/gateway' : stripTrailingSlash(`${getProdGatewayBaseUrl()}`);
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -32,7 +31,13 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const message = error?.response?.data?.message || error?.message || 'Unexpected error';
-    const err: any = new Error(message);
+    const err = new Error(message) as Error & {
+      response?: {
+        status: number;
+        headers: unknown;
+        data: unknown;
+      };
+    };
     // Attach original axios response for richer debugging (status, headers, body)
     if (error?.response) {
       err.response = {
