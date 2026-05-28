@@ -1,9 +1,13 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
   color-scheme: dark;
+  --font-sans: 'Inter', sans-serif;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
 }
 
 html {
@@ -25,10 +29,8 @@ body {
   box-sizing: border-box;
 }
 
-/* Ensure Next.js App Router root containers fill the full iframe height */
-#__next,
-[data-nextjs-scroll-focus-boundary] {
-  height: 100%;
+body {
+  font-family: var(--font-sans);
 }
 
 a {

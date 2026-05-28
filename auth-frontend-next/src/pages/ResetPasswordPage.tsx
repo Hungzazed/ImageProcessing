@@ -8,10 +8,10 @@ import AuthCardLayout from '@/layouts/AuthCardLayout';
 import InputField from '@/components/common/InputField';
 import StatusBanner from '@/components/common/StatusBanner';
 
-export function ResetPasswordPage({ searchParams }: { searchParams: { email?: string; token?: string } }) {
+export function ResetPasswordPage({ searchParams }: { searchParams?: { email?: string; token?: string } }) {
   const router = useRouter();
-  const email = searchParams.email || '';
-  const token = searchParams.token || '';
+  const email = searchParams?.email || '';
+  const token = searchParams?.token || '';
   const [form, setForm] = useState({ email, token, newPassword: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -74,4 +74,8 @@ export function ResetPasswordPage({ searchParams }: { searchParams: { email?: st
       </form>
     </AuthCardLayout>
   );
+}
+
+export default function Page() {
+  return null;
 }

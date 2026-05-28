@@ -25,8 +25,8 @@ export function LoginPage() {
   const [error, setError] = useState('');
 
   const statusMessage = useMemo(() => {
-    if (searchParams.get('verified') === '1') return 'Your email has been verified. You can sign in now.';
-    if (searchParams.get('reset') === '1') return 'Your password has been reset. Please sign in again.';
+    if (searchParams?.get('verified') === '1') return 'Email đã xác thực. Bạn có thể đăng nhập ngay.';
+    if (searchParams?.get('reset') === '1') return 'Mật khẩu đã được đặt lại. Hãy đăng nhập lại.';
     return '';
   }, [searchParams]);
 
@@ -37,37 +37,11 @@ export function LoginPage() {
 
     try {
       const result = await authApi.login(form);
-      authStorage.saveSession(result.accessToken, result.user);
-      dispatch(setSession({ accessToken: result.accessToken, user: result.user }));
+      const profile = await authApi.getUserByEmail(result.user?.email || form.email);
+      const sessionUser = authApi.mergeAuthAndProfile(result.user, profile);
 
-      // Synchronize with parent Shell cookies and Zustand
-      document.cookie = `auth_access_token=${result.accessToken}; path=/; max-age=2592000; SameSite=Strict`;
-      document.cookie = `auth_user=${encodeURIComponent(JSON.stringify(result.user))}; path=/; max-age=2592000; SameSite=Strict`;
-
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(
-          new CustomEvent('auth-login', {
-            detail: { accessToken: result.accessToken, user: result.user },
-          })
-        );
-        window.dispatchEvent(
-          new CustomEvent('navigate', {
-            detail: { path: '/dashboard' },
-          })
-        );
-
-        if (window !== window.parent) {
-          window.parent.postMessage({
-            type: 'auth-login',
-            accessToken: result.accessToken,
-            user: result.user,
-          }, '*');
-          window.parent.postMessage({
-            type: 'navigate',
-            path: '/dashboard',
-          }, '*');
-        }
-      }
+      authStorage.saveSession(result.accessToken, sessionUser);
+      dispatch(setSession({ accessToken: result.accessToken, user: sessionUser }));
 
       router.push('/dashboard');
     } catch (submitError: any) {
@@ -163,4 +137,8 @@ export function LoginPage() {
   );
 }
 
-export default LoginPage;
+
+export default function Page() {
+  return null;
+}
+

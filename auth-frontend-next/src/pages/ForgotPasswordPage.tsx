@@ -53,3 +53,7 @@ export function ForgotPasswordPage() {
     </AuthCardLayout>
   );
 }
+
+export default function Page() {
+  return null;
+}

@@ -24,7 +24,7 @@ export default function AuthHeroPanel({
       <div className="relative flex h-full flex-col justify-between p-10 xl:p-12">
         <div className="flex items-center justify-start">
           <Link href="/login" className="text-[2rem] font-black tracking-[-0.04em] text-white">
-            Lumina Studio
+
           </Link>
         </div>
 

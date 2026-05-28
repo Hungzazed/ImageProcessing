@@ -57,3 +57,7 @@ export function DashboardPage() {
     </div>
   );
 }
+
+export default function Page() {
+  return null;
+}
