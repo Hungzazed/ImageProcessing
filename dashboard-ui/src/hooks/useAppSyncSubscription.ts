@@ -155,9 +155,8 @@ export function useAppSyncSubscription({
     activeStages: string[],
     filterType: string
   ) => {
-    if (!connected || (socketRef.current && socketRef.current.readyState === WebSocket.OPEN)) {
-      return; // Real AWS is connected, skip simulation
-    }
+    // Allow simulation to run for development/testing even if a real socket exists.
+    // This helps debugging when events are not arriving or for local testing.
 
     console.log('Running SQS/Lambda Pipeline simulation for Job:', jobId);
     

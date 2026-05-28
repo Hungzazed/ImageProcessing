@@ -9,6 +9,7 @@ export default function UsersPage() {
   const login = useAuthStore((state) => state.login);
   const [mounted, setMounted] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const usersRemoteUrl = process.env.NEXT_PUBLIC_USERS_REMOTE_URL || 'https://ui-user-service.vercel.app/';
 
   useEffect(() => {
     setMounted(true);
@@ -34,14 +35,13 @@ export default function UsersPage() {
   if (!mounted) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, overflow: 'hidden', background: '#0b1120' }}>
-      <iframe
-        ref={iframeRef}
-        src="https://ui-user-service.vercel.app/users"
-        title="Users Management"
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-        allow="clipboard-write; clipboard-read"
-      />
-    </div>
+    <iframe
+      ref={iframeRef}
+      src={usersRemoteUrl}
+      title="Users Management"
+      className="block h-full w-full border-none flex-1"
+      allow="clipboard-write; clipboard-read"
+    />
   );
 }
+

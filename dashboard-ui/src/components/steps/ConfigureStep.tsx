@@ -390,7 +390,7 @@ export default function ConfigureStep({
               className="flex-1 py-4 bg-primary-container text-on-primary-container font-display text-lg font-bold rounded-xl shadow-[0_0_30px_rgba(124,58,237,0.4)] hover:shadow-[0_0_50px_rgba(124,58,237,0.6)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 select-none cursor-pointer"
             >
               <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>play_arrow</span>
-              LAUNCH IMAGE PROCESSING PIPELINE
+              LAUNCH PROCESS
             </button>
           </div>
         </div>

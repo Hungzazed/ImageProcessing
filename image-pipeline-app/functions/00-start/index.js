@@ -127,7 +127,10 @@ function response(statusCode, body) {
     headers: {
       'Content-Type': 'application/json',
       'X-Content-Type-Options': 'nosniff',
-      'X-Frame-Options': 'DENY'
+      'X-Frame-Options': 'DENY',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+      'Access-Control-Allow-Methods': 'POST,OPTIONS'
     },
     body: JSON.stringify(body),
   };

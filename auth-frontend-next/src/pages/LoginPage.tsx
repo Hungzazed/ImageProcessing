@@ -43,6 +43,35 @@ export function LoginPage() {
       authStorage.saveSession(result.accessToken, sessionUser);
       dispatch(setSession({ accessToken: result.accessToken, user: sessionUser }));
 
+      // Synchronize with parent Shell cookies and Zustand
+      document.cookie = `auth_access_token=${result.accessToken}; path=/; max-age=2592000; SameSite=Strict`;
+      document.cookie = `auth_user=${encodeURIComponent(JSON.stringify(sessionUser))}; path=/; max-age=2592000; SameSite=Strict`;
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('auth-login', {
+            detail: { accessToken: result.accessToken, user: sessionUser },
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent('navigate', {
+            detail: { path: '/dashboard' },
+          })
+        );
+
+        if (window !== window.parent) {
+          window.parent.postMessage({
+            type: 'auth-login',
+            accessToken: result.accessToken,
+            user: sessionUser,
+          }, '*');
+          window.parent.postMessage({
+            type: 'navigate',
+            path: '/dashboard',
+          }, '*');
+        }
+      }
+
       router.push('/dashboard');
     } catch (submitError: any) {
       setError(submitError.message);
@@ -52,11 +81,11 @@ export function LoginPage() {
   }
 
   return (
-    <AuthSplitLayout image={loginImage.src} heroTitle="Tầm nhìn nghệ thuật." heroSubtitle="Trải nghiệm quyền năng của AI trong việc tái định nghĩa vẻ đẹp và sự hoàn mỹ trong từng khung hình.">
+    <AuthSplitLayout image={loginImage.src} heroTitle="Artful vision." heroSubtitle="Experience AI-powered creativity that redefines beauty and precision in every frame.">
       <div className="mb-8 text-center lg:text-left">
-        <p className="font-['Plus_Jakarta_Sans'] text-5xl font-extrabold tracking-[-0.04em] text-[#d2bbff] sm:text-6xl">ĐĂNG NHẬP</p>
-        <h1 className="mt-4 font-['Plus_Jakarta_Sans'] text-[30px] font-semibold leading-[38px] text-[#dae2fd]">Chào mừng trở lại</h1>
-        <p className="mt-2 text-[16px] leading-6 text-[#ccc3d8]">Đăng nhập để tiếp tục sáng tạo những tác phẩm tuyệt đẹp</p>
+        <p className="font-['Plus_Jakarta_Sans'] text-5xl font-extrabold tracking-[-0.04em] text-[#d2bbff] sm:text-6xl">SIGN IN</p>
+        <h1 className="mt-4 font-['Plus_Jakarta_Sans'] text-[30px] font-semibold leading-[38px] text-[#dae2fd]">Welcome back</h1>
+        <p className="mt-2 text-[16px] leading-6 text-[#ccc3d8]">Sign in to continue creating stunning work.</p>
       </div>
 
       <div className="space-y-4">
@@ -74,12 +103,12 @@ export function LoginPage() {
         className="mb-6 mt-4 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-[#2d3449] bg-[#1e293b]/80 px-6 text-sm font-semibold text-[#dae2fd] transition-all duration-300 hover:bg-[#1e293b]"
       >
         <GoogleIcon className="h-5 w-5 shrink-0" />
-        Tiếp tục với Google
+        Continue with Google
       </button>
 
       <div className="mb-6 flex items-center gap-4">
         <div className="h-px flex-1 bg-[#4a4455]/40" />
-        <span className="text-xs font-medium uppercase tracking-[0.28em] text-[#ccc3d8]">Hoặc</span>
+        <span className="text-xs font-medium uppercase tracking-[0.28em] text-[#ccc3d8]">Or</span>
         <div className="h-px flex-1 bg-[#4a4455]/40" />
       </div>
 
@@ -95,8 +124,8 @@ export function LoginPage() {
 
         <div>
           <div className="mb-2 flex items-center justify-between gap-3">
-            <label className="block text-sm font-semibold text-[#ccc3d8]" htmlFor="password">Mật khẩu</label>
-            <Link className="text-xs font-medium text-[#d2bbff] transition-all hover:underline" href="/forgot-password">Quên mật khẩu?</Link>
+            <label className="block text-sm font-semibold text-[#ccc3d8]" htmlFor="password">Password</label>
+            <Link className="text-xs font-medium text-[#d2bbff] transition-all hover:underline" href="/forgot-password">Forgot password?</Link>
           </div>
           <div className="relative">
             <input
@@ -112,7 +141,7 @@ export function LoginPage() {
               type="button"
               onClick={() => setShowPassword((value) => !value)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-[#ccc3d8] transition hover:text-[#d2bbff]"
-              aria-label={showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
               <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
             </button>
@@ -124,21 +153,18 @@ export function LoginPage() {
           disabled={loading}
           className="w-full rounded-xl bg-[#d2bbff] py-3 text-sm font-semibold text-[#3f008e] shadow-lg shadow-[#7c3aed]/20 transition-all duration-200 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {loading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+          {loading ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
 
       <div className="mt-6 text-center">
         <p className="text-sm text-[#ccc3d8]">
-          Bạn chưa có tài khoản? <Link className="font-bold text-[#d2bbff] transition-all hover:underline" href="/register">Đăng ký ngay</Link>
+          Don't have an account? <Link className="font-bold text-[#d2bbff] transition-all hover:underline" href="/register">Create one</Link>
         </p>
       </div>
     </AuthSplitLayout>
   );
 }
 
-
-export default function Page() {
-  return null;
-}
+export default LoginPage;
 

@@ -1,11 +1,12 @@
 import React from 'react';
 
 interface SidebarProps {
-  step: 1 | 2 | 3 | 4 | 5;
-  setStep: (step: 1 | 2 | 3 | 4 | 5) => void;
+  step: 1 | 2 | 3 | 4 | 5 | 6;
+  setStep: (step: 1 | 2 | 3 | 4 | 5 | 6) => void;
   uploadedFile: any;
   jobId: string;
   onNewPipeline: () => void;
+  onOpenAiPipeline: () => void;
 }
 
 export default function Sidebar({
@@ -14,6 +15,7 @@ export default function Sidebar({
   uploadedFile,
   jobId,
   onNewPipeline,
+  onOpenAiPipeline,
 }: SidebarProps) {
   return (
     <aside className="hidden md:flex w-64 flex-col p-6 gap-4 bg-surface-container-low/70 backdrop-blur-xl border-r border-white/5 shadow-2xl">
@@ -75,6 +77,17 @@ export default function Sidebar({
         >
           <span className="material-symbols-outlined text-[20px]">webhook</span>
           <span className="font-sans text-xs font-bold">Notifications</span>
+        </button>
+        <button
+          onClick={onOpenAiPipeline}
+          className={`flex items-center gap-3 p-3 rounded-lg text-left transition-all mt-1 ${
+            step === 6
+              ? 'bg-secondary/10 text-secondary border-r-4 border-secondary border border-secondary/20'
+              : 'text-secondary hover:bg-secondary/10 border border-secondary/10'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[20px]">draw</span>
+          <span className="font-sans text-xs font-bold">AI Image Pipeline</span>
         </button>
       </div>
       <div className="mt-auto select-none">

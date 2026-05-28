@@ -5,7 +5,7 @@ interface UploadStepProps {
   isUploading: boolean;
   uploadProgress: number;
   handleFiles: (files: FileList | null) => void;
-  setStep: (step: 1 | 2 | 3 | 4 | 5) => void;
+  setStep: (step: 1 | 2 | 3 | 4 | 5 | 6) => void;
 }
 
 export default function UploadStep({

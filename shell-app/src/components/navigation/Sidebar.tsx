@@ -5,14 +5,14 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuthStore } from '../../stores/authStore';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  LayoutDashboard, 
-  Users, 
-  LogOut, 
-  Settings, 
-  ShieldAlert, 
-  Terminal, 
-  ChevronLeft, 
+import {
+  LayoutDashboard,
+  Users,
+  LogOut,
+  Settings,
+  ShieldAlert,
+  Terminal,
+  ChevronLeft,
   ChevronRight,
   Layers
 } from 'lucide-react';
@@ -90,11 +90,10 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           return (
             <Link key={item.path} href={item.path}>
               <div
-                className={`relative flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all duration-300 group cursor-pointer ${
-                  isActive
-                    ? 'text-accent-cyan bg-cyan-500/5 font-semibold border border-cyan-500/20'
-                    : 'text-gray-400 hover:text-gray-100 hover:bg-gray-900/40 border border-transparent'
-                }`}
+                className={`relative flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all duration-300 group cursor-pointer ${isActive
+                  ? 'text-accent-cyan bg-cyan-500/5 font-semibold border border-cyan-500/20'
+                  : 'text-gray-400 hover:text-gray-100 hover:bg-gray-900/40 border border-transparent'
+                  }`}
               >
                 {/* Active Glowing Dot */}
                 {isActive && (
@@ -106,9 +105,8 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
 
                 <item.icon
                   size={18}
-                  className={`transition-colors group-hover:text-accent-cyan ${
-                    isActive ? 'text-accent-cyan' : 'text-gray-400'
-                  }`}
+                  className={`transition-colors group-hover:text-accent-cyan ${isActive ? 'text-accent-cyan' : 'text-gray-400'
+                    }`}
                 />
 
                 <AnimatePresence>
@@ -137,17 +135,15 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </div>
             <Link href="/dashboard/admin">
               <div
-                className={`relative flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all duration-300 group cursor-pointer ${
-                  pathname === '/dashboard/admin'
-                    ? 'text-accent-rose bg-rose-500/5 font-semibold border border-rose-500/20'
-                    : 'text-gray-400 hover:text-gray-100 hover:bg-gray-900/40 border border-transparent'
-                }`}
+                className={`relative flex items-center gap-3 px-3 py-3 rounded-lg text-sm transition-all duration-300 group cursor-pointer ${pathname === '/dashboard/admin'
+                  ? 'text-accent-rose bg-rose-500/5 font-semibold border border-rose-500/20'
+                  : 'text-gray-400 hover:text-gray-100 hover:bg-gray-900/40 border border-transparent'
+                  }`}
               >
                 <ShieldAlert
                   size={18}
-                  className={`transition-colors group-hover:text-accent-rose ${
-                    pathname === '/dashboard/admin' ? 'text-accent-rose' : 'text-gray-400'
-                  }`}
+                  className={`transition-colors group-hover:text-accent-rose ${pathname === '/dashboard/admin' ? 'text-accent-rose' : 'text-gray-400'
+                    }`}
                 />
                 <AnimatePresence>
                   {isOpen && (
@@ -167,40 +163,6 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
           </>
         )}
       </nav>
-
-      {/* User Session Box */}
-      <div className="p-3 border-t border-cyan-500/10 bg-gray-950/80">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-cyan-950 border border-cyan-500/30 text-accent-cyan font-bold text-xs uppercase shadow-[0_0_8px_rgba(6,182,212,0.2)] flex-shrink-0">
-              {user?.name ? user.name.slice(0, 2) : 'US'}
-            </div>
-            <AnimatePresence>
-              {isOpen && (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="min-w-0 leading-none"
-                >
-                  <p className="text-xs font-semibold text-gray-200 truncate">{user?.name || 'User Name'}</p>
-                  <span className="text-[10px] text-accent-cyan font-semibold truncate bg-cyan-950/40 px-1.5 py-0.5 rounded border border-cyan-500/20 block mt-1 uppercase">
-                    {user?.role || 'Guest'}
-                  </span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          <button
-            onClick={() => logout()}
-            title="Log Out Console"
-            className="p-2 rounded-lg text-gray-500 hover:text-accent-rose hover:bg-rose-950/30 transition-all flex-shrink-0"
-          >
-            <LogOut size={16} />
-          </button>
-        </div>
-      </div>
     </motion.aside>
   );
 }

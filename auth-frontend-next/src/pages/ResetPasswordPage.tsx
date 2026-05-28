@@ -28,19 +28,19 @@ export function ResetPasswordPage({ searchParams }: { searchParams?: { email?: s
 
     if (form.newPassword !== form.confirmPassword) {
       setLoading(false);
-      setError('Mật khẩu xác nhận không khớp');
+      setError('The confirmation password does not match.');
       return;
     }
 
     if (!form.email || !form.token) {
       setLoading(false);
-      setError('Thiếu email hoặc token reset');
+      setError('Missing email or reset token.');
       return;
     }
 
     try {
       await authApi.resetPassword({ email: form.email, token: form.token, newPassword: form.newPassword });
-      setSuccess('Đặt lại mật khẩu thành công. Đang quay về đăng nhập...');
+      setSuccess('Password reset successful. Returning to sign in...');
       setTimeout(() => router.push('/login?reset=1'), 900);
     } catch (submitError: any) {
       setError(submitError.message);
@@ -52,12 +52,12 @@ export function ResetPasswordPage({ searchParams }: { searchParams?: { email?: s
   return (
     <AuthCardLayout
       eyebrow="Reset password"
-      title="Đặt lại mật khẩu"
-      subtitle="Nhập mật khẩu mới để hoàn tất quy trình khôi phục"
+      title="Reset password"
+      subtitle="Enter a new password to complete the recovery flow."
       footer={
         <div className="flex items-center justify-between text-sm text-[#ccc3d8]">
-          <Link href="/login">Về đăng nhập</Link>
-          <Link href="/forgot-password">Gửi lại email reset</Link>
+          <Link href="/login">Back to sign in</Link>
+          <Link href="/forgot-password">Resend reset email</Link>
         </div>
       }
     >
@@ -68,9 +68,9 @@ export function ResetPasswordPage({ searchParams }: { searchParams?: { email?: s
 
       <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
         <InputField label="Email" type="email" value={form.email} readOnly />
-        <InputField label="Mật khẩu mới" type="password" placeholder="Nhập mật khẩu mới" value={form.newPassword} onChange={(event) => setForm((current) => ({ ...current, newPassword: event.target.value }))} />
-        <InputField label="Xác nhận mật khẩu" type="password" placeholder="Nhập lại mật khẩu mới" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} />
-        <button className="w-full rounded-xl bg-[#7c3aed] py-3 text-sm font-bold text-white" type="submit" disabled={loading}>{loading ? 'Đang cập nhật...' : 'Đặt lại mật khẩu'}</button>
+        <InputField label="New password" type="password" placeholder="Enter a new password" value={form.newPassword} onChange={(event) => setForm((current) => ({ ...current, newPassword: event.target.value }))} />
+        <InputField label="Confirm password" type="password" placeholder="Re-enter the new password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} />
+        <button className="w-full rounded-xl bg-[#7c3aed] py-3 text-sm font-bold text-white" type="submit" disabled={loading}>{loading ? 'Updating...' : 'Reset password'}</button>
       </form>
     </AuthCardLayout>
   );

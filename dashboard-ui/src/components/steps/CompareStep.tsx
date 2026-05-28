@@ -13,10 +13,11 @@ interface CompareStepProps {
   watermarkOpacity: number;
   watermarkPosition: string;
   compressFormat: string;
-  setStep: (step: 1 | 2 | 3 | 4 | 5) => void;
+  setStep: (step: 1 | 2 | 3 | 4 | 5 | 6) => void;
   jobAssets?: Array<{ key: string; stage: string; size: number; lastModified: string | null; url: string }>;
   onSelectAsset?: (url: string) => void;
   onDownloadAsset?: (url: string, filename?: string) => void;
+  nodeStatus?: Record<string, { state: string; duration?: number; size?: string }>;
 }
 
 export default function CompareStep({
@@ -36,7 +37,41 @@ export default function CompareStep({
   jobAssets = [],
   onSelectAsset,
   onDownloadAsset,
+  nodeStatus = {},
 }: CompareStepProps) {
+  const formatBytes = (bytes?: number) => {
+    if (bytes == null) return 'N/A';
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const dm = 2;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+  };
+
+  const parseSizeString = (s?: string) => {
+    if (!s) return undefined;
+    try {
+      const m = s.match(/([\d,.]+)\s*(KB|MB|GB|Bytes)/i);
+      if (!m) return undefined;
+      const num = parseFloat(m[1].replace(/,/g, ''));
+      const unit = (m[2] || '').toUpperCase();
+      if (unit === 'BYTES') return Math.round(num);
+      if (unit === 'KB') return Math.round(num * 1024);
+      if (unit === 'MB') return Math.round(num * 1024 * 1024);
+      if (unit === 'GB') return Math.round(num * 1024 * 1024 * 1024);
+    } catch (e) {
+      return undefined;
+    }
+    return undefined;
+  };
+
+  const startAsset = jobAssets.find((a) => a.stage === 'startPipeline');
+  const finalAsset = jobAssets.find((a) => a.stage === 'compress') || jobAssets[jobAssets.length - 1];
+  const startBytes = startAsset?.size ?? parseSizeString(uploadedFile?.size as string);
+  const finalBytes = finalAsset?.size;
+  const savedPercent = startBytes && finalBytes ? Math.round((1 - finalBytes / startBytes) * 100) : undefined;
+  const sqsTime = nodeStatus?.compress?.duration ?? nodeStatus?.startPipeline?.duration ?? undefined;
   return (
     <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 z-10">
       <div className="flex items-center justify-between mb-2">
@@ -76,7 +111,7 @@ export default function CompareStep({
             >
               <img
                 alt="Processed"
-                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
+                className="absolute inset-0 w-full h-full object-cover pointer-events-none"
                 style={processedImageUrl ? undefined : getProcessedFilterStyle()}
                 src={processedImageUrl || originalImageUrl}
               />
@@ -131,53 +166,23 @@ export default function CompareStep({
 
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full border-4 border-emerald-500/30 border-t-emerald-500 flex items-center justify-center text-emerald-400 font-extrabold text-sm shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-                -75%
+                {typeof savedPercent === 'number' ? `${savedPercent}%` : '—'}
               </div>
               <div>
                 <p className="text-[10px] font-bold text-on-surface-variant tracking-wider uppercase">Storage Space Saved</p>
-                <p className="text-xl font-extrabold text-white mt-1">{uploadedFile.size} ──&gt; 875 KB</p>
+                <p className="text-xl font-extrabold text-white mt-1">{startBytes ? formatBytes(startBytes) : uploadedFile.size} ──&gt; {finalBytes ? formatBytes(finalBytes) : (processedImageUrl ? '—' : '—')}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 font-sans text-xs">
               <div className="flex flex-col gap-1">
                 <span className="text-slate-400">SQS Execution Time</span>
-                <span className="text-sm font-bold text-white">850 ms</span>
+                <span className="text-sm font-bold text-white">{sqsTime ? `${sqsTime} ms` : '—'}</span>
               </div>
               <div className="flex flex-col gap-1">
                 <span className="text-slate-400">Target Format</span>
                 <span className="text-sm font-bold text-white">{compressFormat.toUpperCase()}</span>
               </div>
-            </div>
-          </div>
-
-          <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-4">
-            <h3 className="font-display text-lg font-bold text-white">Pipeline History (Pipeline Album)</h3>
-            <div className="grid grid-cols-3 gap-3">
-              {jobAssets.length === 0 ? (
-                <div className="col-span-3 text-sm text-slate-400">No stage assets available yet.</div>
-              ) : (
-                jobAssets.map((asset) => (
-                  <div key={asset.key} className="glass-card p-2 rounded-xl border border-white/5 flex flex-col items-center">
-                    <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/20 flex items-center justify-center relative">
-                      <img
-                        alt={asset.stage}
-                        className="object-cover h-full w-full"
-                        src={asset.url}
-                        onClick={() => onSelectAsset && onSelectAsset(asset.url)}
-                      />
-                      <button
-                        onClick={() => onDownloadAsset && onDownloadAsset(asset.url, asset.key.split('/').pop())}
-                        title="Download"
-                        className="absolute top-2 right-2 bg-black/40 p-1 rounded-md text-xs"
-                      >
-                        <span className="material-symbols-outlined">download</span>
-                      </button>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-semibold mt-2 capitalize">{asset.stage}</span>
-                  </div>
-                ))
-              )}
             </div>
           </div>
         </div>

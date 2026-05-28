@@ -1,16 +1,17 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../stores/authStore';
 import { listenEvent } from '../../events/eventBus';
 import Breadcrumbs from './Breadcrumbs';
-import { 
-  Bell, 
-  Menu, 
-  User as UserIcon, 
-  LogOut, 
-  Settings, 
-  Wifi, 
+import {
+  Bell,
+  Menu,
+  User as UserIcon,
+  LogOut,
+  Settings,
+  Wifi,
   CheckCircle,
   AlertTriangle,
   X
@@ -30,6 +31,7 @@ interface ShellNotification {
 }
 
 export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
+  const router = useRouter();
   const { user, logout } = useAuthStore();
   const [notifications, setNotifications] = useState<ShellNotification[]>([
     {
@@ -90,7 +92,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
         >
           <Menu size={20} />
         </button>
-        
+
         {/* Sidebar Toggle for Desktop (if closed) */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -105,12 +107,6 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
 
       {/* Right side: Connection Status, Notification & Profile */}
       <div className="flex items-center gap-4">
-        {/* Micro Frontend Network Status */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-cyan-950/30 border border-cyan-500/20 text-[10px] text-accent-cyan tracking-wider font-semibold uppercase">
-          <Wifi size={10} className="animate-pulse" />
-          <span>Orchestration Grid Active</span>
-        </div>
-
         {/* Notifications Icon and Dropdown */}
         <div className="relative" ref={notiRef}>
           <button
@@ -159,7 +155,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
                         {noti.type === 'warning' && <AlertTriangle size={14} className="text-accent-amber mt-0.5 flex-shrink-0" />}
                         {noti.type === 'error' && <AlertTriangle size={14} className="text-accent-rose mt-0.5 flex-shrink-0" />}
                         {noti.type === 'info' && <CheckCircle size={14} className="text-accent-cyan mt-0.5 flex-shrink-0" />}
-                        
+
                         <div className="flex-1">
                           <p className="text-gray-300 leading-normal">{noti.message}</p>
                           <span className="text-[9px] text-gray-500 mt-1 block">{noti.time}</span>
@@ -180,10 +176,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
             className="flex items-center gap-2 p-1.5 rounded-lg border border-cyan-500/10 hover:border-cyan-500/30 hover:bg-gray-900/40 transition-all cursor-pointer"
           >
             <div className="flex items-center justify-center w-7 h-7 rounded-full bg-cyan-950 text-accent-cyan border border-cyan-500/30 font-bold uppercase text-[10px]">
-              {user?.name ? user.name.slice(0, 2) : 'US'}
+              {user?.name ? user.name.slice(0, 2) : (user?.email ? user.email.slice(0, 2) : 'US')}
             </div>
             <span className="text-xs font-medium text-gray-300 hidden md:inline truncate max-w-[80px]">
-              {user?.name || 'Console User'}
+              {user?.name || (user?.email ? user.email.split('@')[0] : 'Console User')}
             </span>
           </button>
 
@@ -197,8 +193,10 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
                 className="absolute right-0 mt-2 w-48 bg-gray-900 border border-cyan-500/20 rounded-xl shadow-[0_4px_25px_rgba(0,0,0,0.5)] backdrop-blur-md overflow-hidden z-50 text-xs text-gray-300"
               >
                 <div className="px-4 py-3 border-b border-cyan-500/10 bg-gray-950/40 leading-tight">
-                  <p className="font-semibold text-gray-200 truncate">{user?.name || 'Account Admin'}</p>
-                  <p className="text-[10px] text-gray-500 truncate mt-0.5">{user?.email || 'admin@grid.io'}</p>
+                  <p className="font-semibold text-gray-200 truncate">
+                    {user?.name || (user?.email ? user.email.split('@')[0] : 'Console User')}
+                  </p>
+                  <p className="text-[10px] text-gray-500 truncate mt-0.5">{user?.email || 'user@grid.io'}</p>
                 </div>
 
                 <div className="p-1">
@@ -238,11 +236,12 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
                     onClick={() => {
                       setProfileOpen(false);
                       logout();
+                      router.push('/auth/login');
                     }}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-rose-950/40 hover:text-accent-rose cursor-pointer text-gray-400 hover:font-medium transition-colors"
                   >
                     <LogOut size={14} />
-                    <span>Terminate Session</span>
+                    <span>Logout</span>
                   </div>
                 </div>
               </motion.div>
