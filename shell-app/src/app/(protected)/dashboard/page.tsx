@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../../stores/authStore';
 
@@ -9,6 +9,7 @@ export default function DashboardPage() {
   const login = useAuthStore((state) => state.login);
   const [mounted, setMounted] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const dashboardRemoteUrl = process.env.NEXT_PUBLIC_DASHBOARD_REMOTE_URL || 'http://localhost:3002/';
 
   useEffect(() => {
     setMounted(true);
@@ -34,14 +35,12 @@ export default function DashboardPage() {
   if (!mounted) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 50, overflow: 'hidden', background: '#0b1120' }}>
-      <iframe
-        ref={iframeRef}
-        src="http://localhost:3002/"
-        title="Dashboard"
-        style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
-        allow="clipboard-write; clipboard-read"
-      />
-    </div>
+    <iframe
+      ref={iframeRef}
+      src={dashboardRemoteUrl}
+      title="Dashboard"
+      className="block h-full w-full border-none flex-1"
+      allow="clipboard-write; clipboard-read"
+    />
   );
 }

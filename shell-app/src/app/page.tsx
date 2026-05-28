@@ -124,40 +124,79 @@ export default function LandingPage() {
       <div className="fixed inset-0 noise-texture z-50 pointer-events-none opacity-[0.03]" />
       <div className="fixed inset-0 cyber-grid pointer-events-none opacity-20" />
 
-      {/* Navigation Header */}
-      <nav className="fixed top-6 left-1/2 -translate-x-1/2 w-[92%] max-w-7xl z-[100] rounded-2xl border border-white/5 bg-[#171f33]/40 backdrop-blur-2xl shadow-2xl flex justify-between items-center px-6 md:px-10 py-4 transition-all duration-500">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-[#d2bbff] rounded-lg flex items-center justify-center rotate-45 shadow-[0_0_20px_#d2bbff]">
-            <span className="material-symbols-outlined text-[#3f008e] -rotate-45 text-sm font-bold">auto_awesome</span>
+      {/* ── Navigation Header ─────────────────────────────────────────── */}
+      <nav className="fixed top-5 left-1/2 -translate-x-1/2 w-[92%] max-w-6xl z-[100] flex items-center justify-between gap-4 rounded-2xl border border-white/[0.07] bg-[#0d1629]/60 px-5 py-3 backdrop-blur-2xl shadow-[0_8px_40px_rgba(0,0,0,0.4)] md:px-7">
+
+        {/* Brand */}
+        <Link href="/" className="group flex shrink-0 items-center gap-2.5">
+          <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-[#d2bbff]/20 to-[#4cd7f6]/10 border border-[#d2bbff]/25 shadow-[0_0_16px_rgba(210,187,255,0.2)] transition-shadow group-hover:shadow-[0_0_24px_rgba(210,187,255,0.35)]">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M2 12L5.5 7L8.5 10.5L11 7.5L14 12H2Z" fill="url(#nav-g)" opacity="0.9"/>
+              <circle cx="11.5" cy="4.5" r="2" fill="#d2bbff"/>
+              <defs>
+                <linearGradient id="nav-g" x1="2" y1="7" x2="14" y2="12">
+                  <stop stopColor="#d2bbff"/>
+                  <stop offset="1" stopColor="#4cd7f6"/>
+                </linearGradient>
+              </defs>
+            </svg>
           </div>
-          <span className="font-['Plus_Jakarta_Sans'] text-headline-sm font-black tracking-tight text-white">
-            Lumina<span className="text-[#d2bbff]">.</span>
+          <span className="font-['Plus_Jakarta_Sans'] text-[15px] font-black tracking-tight text-white transition-colors group-hover:text-[#d2bbff]">
+            Lumina<span className="text-[#d2bbff] group-hover:text-white transition-colors">.</span>
           </span>
+        </Link>
+
+        {/* Center nav links */}
+        <div className="hidden items-center gap-1 md:flex">
+          {[
+            { label: 'Gallery', href: '/' },
+            { label: 'Features', href: '#features' },
+            { label: 'Showcase', href: '#showcase' },
+            { label: 'Performance', href: '#stats' },
+          ].map(({ label, href }) => (
+            <a
+              key={label}
+              href={href}
+              className="rounded-full px-4 py-1.5 text-[13px] font-medium text-[#ccc3d8]/70 transition-all hover:bg-white/5 hover:text-white"
+            >
+              {label}
+            </a>
+          ))}
         </div>
-        <div className="hidden md:flex items-center gap-10">
-          <Link className="text-[#d2bbff] font-bold relative group py-1" href="/">
-            Gallery
-            <span className="absolute bottom-0 left-0 w-full h-0.5 bg-[#d2bbff] rounded-full"></span>
-          </Link>
-          <a className="text-[#ccc3d8] hover:text-white transition-colors font-semibold" href="#features">Features</a>
-          <a className="text-[#ccc3d8] hover:text-white transition-colors font-semibold" href="#showcase">Showcase</a>
-          <a className="text-[#ccc3d8] hover:text-white transition-colors font-semibold" href="#stats">Performance</a>
-        </div>
-        <div className="flex items-center gap-4 md:gap-6">
+
+        {/* Right: auth-aware CTA */}
+        <div className="flex shrink-0 items-center gap-2">
           {isLoggedIn ? (
-            <button 
-              onClick={() => router.push('/dashboard')}
-              className="bg-[#d2bbff] text-[#3f008e] px-5 md:px-8 py-2.5 rounded-xl font-bold hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#d2bbff]/30 text-xs md:text-sm cursor-pointer"
-            >
-              Control Center
-            </button>
+            <>
+              {/* User chip */}
+              <div className="hidden items-center gap-2 rounded-full border border-[#d2bbff]/20 bg-[#d2bbff]/5 pl-1 pr-3.5 py-1 sm:flex">
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-[#d2bbff] to-[#7c3aed] text-[10px] font-bold text-white shadow-[0_0_10px_rgba(210,187,255,0.3)]">
+                  {user?.name?.[0]?.toUpperCase() || '?'}
+                </div>
+                <span className="text-[12px] font-semibold text-white">{user?.name || 'User'}</span>
+              </div>
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="rounded-xl bg-gradient-to-r from-[#d2bbff] to-[#a78bfa] px-5 py-2 text-[13px] font-bold text-[#2d0060] shadow-[0_0_20px_rgba(210,187,255,0.3)] transition-all hover:brightness-110 hover:shadow-[0_0_28px_rgba(210,187,255,0.5)] active:scale-95 cursor-pointer"
+              >
+                Control Center
+              </button>
+            </>
           ) : (
-            <button 
-              onClick={() => router.push('/auth/login')}
-              className="bg-[#d2bbff] text-[#3f008e] px-5 md:px-8 py-2.5 rounded-xl font-bold hover:scale-105 active:scale-95 transition-all shadow-xl shadow-[#d2bbff]/30 text-xs md:text-sm cursor-pointer"
-            >
-              Establish Link
-            </button>
+            <>
+              <button
+                onClick={() => router.push('/auth/login')}
+                className="hidden rounded-full px-4 py-1.5 text-[13px] font-medium text-[#ccc3d8]/70 transition-all hover:bg-white/5 hover:text-white sm:block cursor-pointer"
+              >
+                Sign in
+              </button>
+              <button
+                onClick={() => router.push('/auth/login')}
+                className="rounded-xl bg-gradient-to-r from-[#d2bbff] to-[#a78bfa] px-5 py-2 text-[13px] font-bold text-[#2d0060] shadow-[0_0_20px_rgba(210,187,255,0.3)] transition-all hover:brightness-110 hover:shadow-[0_0_28px_rgba(210,187,255,0.5)] active:scale-95 cursor-pointer"
+              >
+                Get started →
+              </button>
+            </>
           )}
         </div>
       </nav>
@@ -444,44 +483,72 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="w-full py-16 border-t border-white/5 bg-[#060e20]/50 relative z-10">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 max-w-7xl mx-auto px-6 md:px-16 w-full">
-          <div className="space-y-6">
-            <div className="font-['Plus_Jakarta_Sans'] text-headline-sm font-black text-white">Lumina<span className="text-[#d2bbff]">.</span></div>
-            <p className="text-xs text-[#ccc3d8]/75 leading-relaxed max-w-xs font-['Inter']">
-              Architecting the future of visual reality through proprietary Aesthetic Intelligence. Based in San Francisco.
-            </p>
-            <div className="flex gap-3">
-              <button className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center text-[#ccc3d8] hover:text-[#d2bbff] hover:border-[#d2bbff]/50 transition-all cursor-pointer">
-                <span className="material-symbols-outlined text-[18px]">public</span>
-              </button>
-              <button className="w-10 h-10 rounded-xl glass-panel flex items-center justify-center text-[#ccc3d8] hover:text-[#d2bbff] hover:border-[#d2bbff]/50 transition-all cursor-pointer">
-                <span className="material-symbols-outlined text-[18px]">share</span>
-              </button>
+      {/* ── Footer ─────────────────────────────────────────────────────── */}
+      <footer className="relative z-10 w-full border-t border-white/[0.06] bg-[#060e20]/60 backdrop-blur-xl">
+        {/* 1px shimmer top */}
+        <div className="h-px w-full bg-gradient-to-r from-transparent via-[#d2bbff]/15 to-transparent" />
+
+        <div className="mx-auto max-w-7xl px-6 py-14 md:px-16">
+          <div className="grid grid-cols-1 gap-12 md:grid-cols-4">
+
+            {/* Brand col */}
+            <div className="space-y-5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#d2bbff]/25 bg-gradient-to-br from-[#d2bbff]/20 to-[#4cd7f6]/10">
+                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 12L5.5 7L8.5 10.5L11 7.5L14 12H2Z" fill="#d2bbff" opacity="0.85"/>
+                    <circle cx="11.5" cy="4.5" r="2" fill="#d2bbff"/>
+                  </svg>
+                </div>
+                <span className="font-['Plus_Jakarta_Sans'] text-[16px] font-black text-white">
+                  Lumina<span className="text-[#d2bbff]">.</span>
+                </span>
+              </div>
+              <p className="max-w-xs text-xs leading-relaxed text-[#ccc3d8]/60 font-['Inter']">
+                Architecting the future of visual reality through proprietary Aesthetic Intelligence.
+              </p>
+              <div className="flex gap-2">
+                <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/4 text-[#ccc3d8]/60 transition-all hover:border-[#d2bbff]/30 hover:text-[#d2bbff] cursor-pointer">
+                  <span className="material-symbols-outlined text-[16px]">public</span>
+                </button>
+                <button className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/8 bg-white/4 text-[#ccc3d8]/60 transition-all hover:border-[#d2bbff]/30 hover:text-[#d2bbff] cursor-pointer">
+                  <span className="material-symbols-outlined text-[16px]">share</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Link cols */}
+            {[
+              { title: 'Product', links: ['Neural Studio', 'API Gateway', 'Documentation'] },
+              { title: 'Legal', links: ['Privacy Architecture', 'Terms of Protocol', 'Service Agreement'] },
+              { title: 'Support', links: ['Help Systems', 'Live Neural Chat', 'System Status'] },
+            ].map(({ title, links }) => (
+              <div key={title} className="flex flex-col gap-3">
+                <h4 className="mb-1 text-[9px] font-mono font-bold uppercase tracking-[0.25em] text-white/50">{title}</h4>
+                {links.map((l) => (
+                  <a key={l} href="#" className="text-xs font-medium text-[#ccc3d8]/55 transition-colors hover:text-[#d2bbff]">{l}</a>
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom bar */}
+          <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-white/[0.05] pt-8 sm:flex-row">
+            <p className="text-[10px] text-[#ccc3d8]/35">© 2026 Lumina Studio. Designed for the Future of Sight.</p>
+            <div className="flex items-center gap-2">
+              {isLoggedIn ? (
+                <>
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
+                  <span className="text-[10px] text-[#ccc3d8]/40">{user?.email || 'Authenticated'}</span>
+                </>
+              ) : (
+                <>
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#d2bbff]/35" />
+                  <span className="text-[10px] text-[#ccc3d8]/35">Not signed in</span>
+                </>
+              )}
             </div>
           </div>
-          <div className="flex flex-col gap-3.5">
-            <h4 className="text-[10px] font-mono text-white uppercase tracking-[0.2em] mb-2 font-bold">Product</h4>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">Neural Studio</a>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">API Gateway</a>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">Documentation</a>
-          </div>
-          <div className="flex flex-col gap-3.5">
-            <h4 className="text-[10px] font-mono text-white uppercase tracking-[0.2em] mb-2 font-bold">Legal</h4>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">Privacy Architecture</a>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">Terms of Protocol</a>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">Service Agreement</a>
-          </div>
-          <div className="flex flex-col gap-3.5">
-            <h4 className="text-[10px] font-mono text-white uppercase tracking-[0.2em] mb-2 font-bold">Support</h4>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">Help Systems</a>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">Live Neural Chat</a>
-            <a className="text-[#ccc3d8] hover:text-[#d2bbff] transition-colors text-xs font-medium" href="#">System Status</a>
-          </div>
-        </div>
-        <div className="container mx-auto px-6 md:px-16 mt-12 pt-8 border-t border-white/5 text-center w-full">
-          <p className="text-[10px] text-[#ccc3d8]/40 font-medium">© 2026 Lumina Studio. Designed for the Future of Sight.</p>
         </div>
       </footer>
     </div>

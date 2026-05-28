@@ -1,23 +1,26 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { pipelineApi, PipelineOptions } from '@/api/pipelineApi';
 import { useAppSyncSubscription, ProgressEvent } from '@/hooks/useAppSyncSubscription';
 
 // Import decoupled components
-import Sidebar from '@/components/Sidebar';
 import UploadStep from '@/components/steps/UploadStep';
 import ConfigureStep from '@/components/steps/ConfigureStep';
 import MonitorStep from '@/components/steps/MonitorStep';
 import CompareStep from '@/components/steps/CompareStep';
 import ExportStep from '@/components/steps/ExportStep';
+import AiPipelineStep from '@/components/steps/AiPipelineStep';
+import DashboardNavbar from '@/components/DashboardNavbar';
 import { getSharedSession } from '@/utils/session';
 
 type UploadedFile = {
   name: string;
   size: string;
   resolution: string;
+  width?: number;
+  height?: number;
   previewUrl: string;
   s3Key?: string;
 };
@@ -40,9 +43,10 @@ type LogMessage = {
 };
 
 export default function DashboardPage() {
-  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [user, setUser] = useState<any>(null);
   const [token, setToken] = useState<string | null>(null);
+  const pipelineStartedAtRef = useRef<number | null>(null);
 
   // Active file details
   const [uploadedFile, setUploadedFile] = useState<UploadedFile | null>(null);
@@ -52,7 +56,7 @@ export default function DashboardPage() {
   const [uploadProgress, setUploadProgress] = useState(0);
 
   // Pipeline configuration toggles
-  const [enableResize, setEnableResize] = useState(true);
+  const [enableResize, setEnableResize] = useState(false);
   const [resizeWidth, setResizeWidth] = useState(1920);
   const [resizeHeight, setResizeHeight] = useState(1080);
   const [resizeFit, setResizeFit] = useState<'cover' | 'contain' | 'fill'>('cover');
@@ -114,6 +118,67 @@ export default function DashboardPage() {
     return `https://${bucket}.s3.${region}.amazonaws.com/${normalizedKey}`;
   };
 
+  const fetchS3Head = async (url: string) => {
+    try {
+      const response = await fetch(`/api/fetch-head?url=${encodeURIComponent(url)}`);
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.success) {
+        return null;
+      }
+
+      return {
+        length: typeof payload.length === 'number' ? payload.length : null,
+        type: typeof payload.type === 'string' ? payload.type : null,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const parseProcessingTimeMs = (value?: string | number | null) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return Math.round(value);
+    }
+
+    if (value == null) return undefined;
+
+    const normalized = String(value).trim().toLowerCase();
+    if (!normalized) return undefined;
+
+    const msMatch = normalized.match(/^([\d.]+)\s*ms$/);
+    if (msMatch) return Math.round(parseFloat(msMatch[1]));
+
+    const secMatch = normalized.match(/^([\d.]+)\s*s(ec(onds?)?)?$/);
+    if (secMatch) return Math.round(parseFloat(secMatch[1]) * 1000);
+
+    const minMatch = normalized.match(/^([\d.]+)\s*m(in(utes?)?)?$/);
+    if (minMatch) return Math.round(parseFloat(minMatch[1]) * 60 * 1000);
+
+    const numericOnly = Number(normalized);
+    if (!Number.isNaN(numericOnly)) return Math.round(numericOnly);
+
+    return undefined;
+  };
+
+  const getImageDimensions = async (previewUrl: string) => {
+    try {
+      const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = previewUrl;
+      });
+
+      return {
+        w: image.naturalWidth,
+        h: image.naturalHeight,
+      };
+    } catch {
+      return null;
+    }
+  };
+
   const refreshJobAssets = async (activeJobId: string) => {
     if (!activeJobId) return;
 
@@ -141,6 +206,18 @@ export default function DashboardPage() {
       const finalAsset = assets.find((item) => item.stage === 'compress') || assets[assets.length - 1];
       if (finalAsset?.url) {
         setProcessedImageUrl(finalAsset.url);
+        void (async () => {
+          const headInfo = await fetchS3Head(finalAsset.url);
+          if (!headInfo?.length) return;
+
+          setJobAssets((prev) =>
+            prev.map((item) =>
+              item.stage === 'compress' && item.url === finalAsset.url
+                ? { ...item, size: headInfo.length || item.size }
+                : item
+            )
+          );
+        })();
       }
     } catch (error) {
       console.warn('Unable to load S3 assets for job', activeJobId, error);
@@ -204,25 +281,47 @@ export default function DashboardPage() {
     }
 
     if (stageKey) {
-      const stageUrl = getPublicS3Url(metadata?.s3Key);
+      const stageUrl = metadata?.url || getPublicS3Url(metadata?.s3Key);
 
-      setNodeStatus((prev) => ({
-        ...prev,
-        [stageKey]: {
-          state: status === 'FAILED' ? 'failed' : 'completed',
-          size: metadata?.size ? formatBytes(metadata.size) : undefined,
-        },
-      }));
+      // Record start timestamp for duration calculation
+      setNodeStatus((prev) => {
+        const nextState: 'processing' | 'failed' | 'completed' = eventType === 'image.processing.started' ? 'processing' : status === 'FAILED' ? 'failed' : 'completed';
+        const next: { state: string; duration?: number; size?: string } = {
+          state: nextState,
+          ...(metadata?.size ? { size: formatBytes(metadata.size) } : {}),
+        };
 
+        return { ...prev, [stageKey]: next } as Record<string, { state: string; duration?: number; size?: string }>;
+      });
+
+      // Populate stage image urls and jobAssets when possible
       if (stageUrl) {
-        setStageImageUrls((prev) => ({
-          ...prev,
-          [stageKey]: stageUrl,
-        }));
-
+        setStageImageUrls((prev) => ({ ...prev, [stageKey]: stageUrl }));
         if (eventType === 'image.completed') {
           setProcessedImageUrl(stageUrl);
         }
+
+        // If metadata contains a size, add to jobAssets for metrics
+        if (metadata?.size) {
+          setJobAssets((prev) => {
+            const exists = prev.some((p) => p.stage === stageKey && p.url === stageUrl);
+            if (exists) return prev;
+            return [
+              ...prev,
+              { key: `${stageKey}-${Date.now()}`, stage: stageKey as any, size: metadata.size, lastModified: null, url: stageUrl },
+            ];
+          });
+        }
+      } else if (metadata?.size) {
+        // If no URL but size is provided, still add a job asset placeholder so metrics can compute
+        setJobAssets((prev) => {
+          const exists = prev.some((p) => p.stage === stageKey && !p.url);
+          if (exists) return prev;
+          return [
+            ...prev,
+            { key: `${stageKey}-${Date.now()}`, stage: stageKey as any, size: metadata.size, lastModified: null, url: '' },
+          ];
+        });
       }
     }
 
@@ -239,6 +338,20 @@ export default function DashboardPage() {
     // Check if pipeline is fully complete
     if (eventType === 'image.completed') {
       setIsProcessing(false);
+      const backendProcessingMs = parseProcessingTimeMs(metadata?.processingTime ?? metadata?.duration ?? metadata?.elapsedMs);
+      const fallbackProcessingMs = pipelineStartedAtRef.current ? Date.now() - pipelineStartedAtRef.current : undefined;
+
+      if (backendProcessingMs || fallbackProcessingMs) {
+        setNodeStatus((prev) => ({
+          ...prev,
+          compress: {
+            ...(prev.compress || { state: 'completed' }),
+            state: 'completed',
+            duration: backendProcessingMs ?? fallbackProcessingMs,
+          },
+        }));
+      }
+
       void refreshJobAssets(jobId || event.jobId);
       setTimeout(() => {
         setStep(4); // Automatically navigate to comparison screen!
@@ -247,7 +360,7 @@ export default function DashboardPage() {
   };
 
   // AppSync WebSocket listener
-  const { connected, runSimulation } = useAppSyncSubscription({
+  const { runSimulation } = useAppSyncSubscription({
     endpoint: process.env.NEXT_PUBLIC_APPSYNC_ENDPOINT || '',
     apiKey: process.env.NEXT_PUBLIC_APPSYNC_API_KEY || '',
     userId: user?.id || 'user-999',
@@ -280,13 +393,23 @@ export default function DashboardPage() {
       if (response.data?.success) {
         setIsUploading(false);
         setS3Uploaded(true);
+        const preview = URL.createObjectURL(file);
+        const dimensions = await getImageDimensions(preview);
+        const width = dimensions?.w ?? 1920;
+        const height = dimensions?.h ?? 1080;
+
         setUploadedFile({
           name: file.name,
           size: formatBytes(file.size),
-          resolution: '1920 x 1080px',
-          previewUrl: URL.createObjectURL(file),
+          resolution: `${width} x ${height}px`,
+          width,
+          height,
+          previewUrl: preview,
           s3Key: response.data.key,
         });
+        setEnableResize(false);
+        setResizeWidth(width);
+        setResizeHeight(height);
         setStep(2); // Auto proceed to configure screen
       } else {
         throw new Error(response.data?.error || 'S3 upload failed');
@@ -298,12 +421,22 @@ export default function DashboardPage() {
       setUploadProgress(0); // Reset progress on error
       
       // Still allow them to use the app in offline/simulation mode
+      const preview = URL.createObjectURL(file);
+      const dimensions = await getImageDimensions(preview);
+      const width = dimensions?.w ?? 1920;
+      const height = dimensions?.h ?? 1080;
+
       setUploadedFile({
         name: file.name,
         size: formatBytes(file.size),
-        resolution: '1920 x 1080px',
-        previewUrl: URL.createObjectURL(file),
+        resolution: `${width} x ${height}px`,
+        width,
+        height,
+        previewUrl: preview,
       });
+      setEnableResize(false);
+      setResizeWidth(width);
+      setResizeHeight(height);
       setStep(2);
     }
   };
@@ -314,6 +447,7 @@ export default function DashboardPage() {
 
     setLogs([]);
     setIsProcessing(true);
+    pipelineStartedAtRef.current = Date.now();
 
     const activeStages: string[] = [];
     const initNodeStatus: Record<string, { state: string }> = {
@@ -400,10 +534,23 @@ export default function DashboardPage() {
 
       const actualJobId = responseData?.data?.jobId || responseData?.jobId || fallbackJobId;
       const actualImageId = responseData?.data?.imageId || responseData?.imageId || fallbackImageId;
+      const backendProcessingMs = parseProcessingTimeMs(responseData?.processingTime ?? responseData?.data?.processingTime);
+      const fallbackProcessingMs = pipelineStartedAtRef.current ? Date.now() - pipelineStartedAtRef.current : undefined;
 
       setJobId(actualJobId);
       setImageId(actualImageId);
       void refreshJobAssets(actualJobId);
+
+      if (backendProcessingMs || fallbackProcessingMs) {
+        setNodeStatus((prev) => ({
+          ...prev,
+          compress: {
+            ...(prev.compress || { state: 'completed' }),
+            state: 'completed',
+            duration: backendProcessingMs ?? fallbackProcessingMs,
+          },
+        }));
+      }
 
       setLogs((prev) => [
         ...prev,
@@ -498,108 +645,59 @@ export default function DashboardPage() {
     setStep(1);
   };
 
+  // If we have a processedImageUrl but no compress asset recorded, try to fetch its size
+  useEffect(() => {
+    if (!processedImageUrl) return;
+
+    let canceled = false;
+
+    (async () => {
+      try {
+        const proxyRes = await fetch(`/api/fetch-head?url=${encodeURIComponent(processedImageUrl)}`);
+        const payload = await proxyRes.json();
+        if (!canceled && payload?.success && payload.length) {
+          const size = payload.length as number;
+          setJobAssets((prev) => {
+            const hasCompress = prev.some((p) => p.stage === 'compress');
+            if (hasCompress) return prev;
+            return [
+              ...prev,
+              { key: `compress-${Date.now()}`, stage: 'compress', size, lastModified: null, url: processedImageUrl },
+            ];
+          });
+
+          setStageImageUrls((prev) => ({ ...prev, compress: processedImageUrl }));
+        }
+      } catch (e) {
+        // ignore proxy errors
+      }
+    })();
+
+    return () => {
+      canceled = true;
+    };
+  }, [processedImageUrl]);
+
   return (
     <div className="flex flex-col h-screen overflow-hidden">
-      {/* Top Navigation Bar */}
-      <header className="w-full top-0 sticky z-50 bg-surface/70 backdrop-blur-xl border-b border-white/10 shadow-xl flex justify-between items-center px-16 py-4">
-        <div
-          className="font-display text-2xl font-extrabold tracking-tighter text-primary cursor-pointer select-none"
-          onClick={() => setStep(1)}
-        >
-          Pipeline Studio
-        </div>
-        <nav className="hidden md:flex items-center gap-6 select-none">
-          <button
-            className={`font-display text-sm font-semibold transition-all pb-1 duration-200 outline-none cursor-pointer ${step === 1 ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
-            onClick={() => setStep(1)}
-          >
-            Upload
-          </button>
-          <button
-            className={`font-display text-sm font-semibold transition-all pb-1 duration-200 outline-none cursor-pointer ${step === 2 ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
-            onClick={() => uploadedFile && setStep(2)}
-            disabled={!uploadedFile}
-          >
-            Configure
-          </button>
-          <button
-            className={`font-display text-sm font-semibold transition-all pb-1 duration-200 outline-none cursor-pointer ${step === 3 ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
-            onClick={() => jobId && setStep(3)}
-            disabled={!jobId}
-          >
-            Monitor
-          </button>
-          <button
-            className={`font-display text-sm font-semibold transition-all pb-1 duration-200 outline-none cursor-pointer ${step === 4 ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
-            onClick={() => jobId && setStep(4)}
-            disabled={!jobId}
-          >
-            Compare
-          </button>
-          <button
-            className={`font-display text-sm font-semibold transition-all pb-1 duration-200 outline-none cursor-pointer ${step === 5 ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant hover:text-on-surface'}`}
-            onClick={() => jobId && setStep(5)}
-            disabled={!jobId}
-          >
-            Export
-          </button>
-          <button
-              className={`font-display text-sm font-semibold text-on-surface-variant hover:text-primary transition-all pb-1 duration-200 outline-none cursor-pointer flex items-center gap-1.5`}
-            onClick={() => {
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new CustomEvent('navigate', { detail: { path: '/users' } }));
-                if (window !== window.parent) {
-                  window.parent.postMessage({
-                    type: 'navigate',
-                    path: '/users',
-                  }, '*');
-                }
-              }
-            }}
-          >
-            <span className="material-symbols-outlined text-[16px]">group</span>
-            Manage Users
-          </button>
-        </nav>
+      {/* Dashboard Horizontal Top Navigation Navbar */}
+      <DashboardNavbar
+        step={step}
+        setStep={setStep}
+        uploadedFile={uploadedFile}
+        jobId={jobId}
+        onNewPipeline={handleNewPipeline}
+        onOpenAiPipeline={() => setStep(6)}
+      />
 
-        <div className="flex items-center gap-4 select-none">
-          <span className="text-xs font-mono px-3 py-1.5 bg-white/5 border border-white/10 rounded-full text-secondary">
-            {connected ? '● AppSync Live' : '○ Local Sandbox'}
-          </span>
-          <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors text-[20px] outline-none">notifications</button>
-          <button className="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors text-[20px] outline-none">settings</button>
+      {/* Main Work Area */}
+      <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-12 py-10 relative">
+        {/* Glowing Blurs */}
+        <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
+        <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-secondary/5 rounded-full blur-[120px] pointer-events-none"></div>
 
-          <div className="flex items-center gap-2 border-l border-white/10 pl-3">
-            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs border border-primary/20">
-              {user?.name?.[0] || 'U'}
-            </div>
-            <div className="hidden lg:block text-left">
-              <p className="text-xs font-semibold text-white leading-none">{user?.name || 'User'}</p>
-              <p className="text-[10px] text-slate-400 leading-none mt-1">{user?.email || 'N/A'}</p>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      {/* Side and main content layout */}
-      <div className="flex flex-1 overflow-hidden relative">
-        {/* Left Sidebar Layout */}
-        <Sidebar
-          step={step}
-          setStep={setStep}
-          uploadedFile={uploadedFile}
-          jobId={jobId}
-          onNewPipeline={handleNewPipeline}
-        />
-
-        {/* Main Work Area */}
-        <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden px-12 py-10 relative">
-          {/* Glowing Blurs */}
-          <div className="absolute top-1/4 -left-20 w-96 h-96 bg-primary/5 rounded-full blur-[120px] pointer-events-none"></div>
-          <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-secondary/5 rounded-full blur-[120px] pointer-events-none"></div>
-
-          {/* Render Active Steps */}
-          {step === 1 && (
+        {/* Render Active Steps */}
+        {step === 1 && (
             <UploadStep
               uploadedFile={uploadedFile}
               isUploading={isUploading}
@@ -673,6 +771,7 @@ export default function DashboardPage() {
               processedImageUrl={processedImageUrl}
               stageImageUrls={stageImageUrls}
               jobAssets={jobAssets}
+              nodeStatus={nodeStatus}
               onSelectAsset={onSelectAsset}
               onDownloadAsset={onDownloadAsset}
               sliderPosition={sliderPosition}
@@ -712,21 +811,11 @@ export default function DashboardPage() {
               onNewPipeline={handleNewPipeline}
             />
           )}
-        </main>
-      </div>
 
-      {/* Unified Footer */}
-      <footer className="bg-surface-container-lowest border-t border-white/5 flex justify-between items-center px-16 py-4 text-xs select-none">
-        <div className="text-slate-400 font-sans">
-          © 2026 Serverless Image Pipeline Studio. Visionary Processing.
-        </div>
-        <div className="flex gap-6 font-sans">
-          <a className="text-slate-500 hover:text-secondary transition-colors" href="#">Documentation</a>
-          <a className="text-slate-500 hover:text-secondary transition-colors" href="#">API Status</a>
-          <a className="text-slate-500 hover:text-secondary transition-colors" href="#">Support</a>
-          <a className="text-slate-500 hover:text-secondary transition-colors" href="#">Privacy</a>
-        </div>
-      </footer>
+          {step === 6 && (
+            <AiPipelineStep embedded onClose={() => setStep(1)} />
+          )}
+      </main>
     </div>
   );
 }

@@ -17,7 +17,7 @@ interface MonitorStepProps {
   resizeFit: string;
   jobId: string;
   isProcessing: boolean;
-  setStep: (step: 1 | 2 | 3 | 4 | 5) => void;
+  setStep: (step: 1 | 2 | 3 | 4 | 5 | 6) => void;
 }
 
 export default function MonitorStep({
@@ -41,11 +41,6 @@ export default function MonitorStep({
 }: MonitorStepProps) {
   return (
     <div className="w-full max-w-5xl mx-auto flex flex-col gap-10 z-10">
-      <div className="text-center space-y-2">
-        <h1 className="font-display text-3xl font-extrabold text-white">Live Monitor</h1>
-        <p className="text-sm text-on-surface-variant">Monitoring the image processing progress.    </p>
-      </div>
-
       {/* Dynamic flowchart */}
       <div className="glass-panel p-8 rounded-[24px] flex flex-col md:flex-row items-center justify-center gap-6 border border-white/10 shadow-2xl min-h-[160px] overflow-x-auto select-none">
         {/* Start Node */}

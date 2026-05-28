@@ -27,7 +27,7 @@ export function CallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
-  const [status, setStatus] = useState('Đang hoàn tất đăng nhập Google...');
+  const [status, setStatus] = useState('Completing Google sign-in...');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -35,8 +35,8 @@ export function CallbackPage() {
 
     async function finishGoogleAuth() {
       try {
-        const accessTokenFromQuery = searchParams.get('accessToken') || '';
-        const encodedUserFromQuery = searchParams.get('user') || '';
+        const accessTokenFromQuery = searchParams?.get('accessToken') || '';
+        const encodedUserFromQuery = searchParams?.get('user') || '';
         const decodedUserFromQuery = encodedUserFromQuery
           ? JSON.parse(decodeBase64Url(encodedUserFromQuery))
           : null;
@@ -44,10 +44,12 @@ export function CallbackPage() {
         const accessToken = accessTokenFromQuery || readCookie('accessToken');
         const tempUserInfo = readCookie('tempUserInfo');
         const session = accessToken ? await authApi.verifyToken(accessToken) : await authApi.verifySession();
-        const user = decodedUserFromQuery || (tempUserInfo ? JSON.parse(tempUserInfo) : session.user);
+        const rawUser = decodedUserFromQuery || (tempUserInfo ? JSON.parse(tempUserInfo) : session.user);
+        const profile = rawUser?.email ? await authApi.getUserByEmail(rawUser.email) : null;
+        const user = authApi.mergeAuthAndProfile(rawUser, profile);
         const resolvedAccessToken = accessToken || session.accessToken || '';
 
-        if (!resolvedAccessToken) throw new Error('Không tìm thấy access token sau callback');
+        if (!resolvedAccessToken) throw new Error('No access token was returned after the callback.');
 
         authStorage.saveSession(resolvedAccessToken, user);
         dispatch(setSession({ accessToken: resolvedAccessToken, user }));
@@ -55,13 +57,13 @@ export function CallbackPage() {
         clearCookie('tempUserInfo');
 
         if (alive) {
-          setStatus('Đăng nhập Google thành công. Đang chuyển tới dashboard...');
+          setStatus('Google sign-in successful. Redirecting to the dashboard...');
           setTimeout(() => router.replace('/dashboard'), 800);
         }
       } catch (callbackError: any) {
         if (alive) {
           setError(callbackError.message);
-          setStatus('Không thể hoàn tất đăng nhập Google');
+          setStatus('Unable to complete Google sign-in');
         }
       }
     }
@@ -74,7 +76,7 @@ export function CallbackPage() {
   }, [dispatch, router, searchParams]);
 
   return (
-    <AuthCardLayout eyebrow="Google sign-in" title="Đang hoàn tất callback" subtitle="Frontend đang lấy token do auth-service trả về và lưu phiên đăng nhập.">
+    <AuthCardLayout eyebrow="Google sign-in" title="Finishing callback" subtitle="The frontend is receiving the token from auth-service and saving the session.">
       {error ? <div className="mb-4 rounded-xl border border-[#ffb4ab]/20 bg-[#93000a]/20 px-4 py-3 text-sm text-[#ffdad6]">{error}</div> : null}
       <div className="flex items-center gap-3 text-sm text-slate-300">
         <span className="h-3 w-3 animate-pulse rounded-full bg-emerald-300" />
@@ -82,4 +84,8 @@ export function CallbackPage() {
       </div>
     </AuthCardLayout>
   );
+}
+
+export default function Page() {
+  return null;
 }

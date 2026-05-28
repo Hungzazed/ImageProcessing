@@ -62,6 +62,7 @@ functions:
       - http:
           path: process
           method: post
+          cors: true
 
   resize:
     handler: functions/01-resize/index.handler

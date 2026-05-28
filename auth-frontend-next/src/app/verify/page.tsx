@@ -1,5 +1,10 @@
+import { Suspense } from 'react';
 import { VerifyOtpPage } from '@/pages/VerifyOtpPage';
 
 export default function Page() {
-  return <VerifyOtpPage />;
+  return (
+    <Suspense fallback={null}>
+      <VerifyOtpPage />
+    </Suspense>
+  );
 }

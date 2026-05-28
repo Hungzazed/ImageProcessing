@@ -5,6 +5,13 @@ export type AuthUser = {
   email?: string;
   role?: string;
   isVerified?: boolean;
+  username?: string;
+  fullName?: string;
+  phoneNumber?: string;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
 };
 
 const AUTH_TOKEN_KEY = 'authToken';

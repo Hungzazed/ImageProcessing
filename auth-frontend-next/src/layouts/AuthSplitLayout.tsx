@@ -1,3 +1,5 @@
+'use client';
+
 import AuthHeroPanel from '@/components/auth/AuthHeroPanel';
 
 export default function AuthSplitLayout({
@@ -13,9 +15,9 @@ export default function AuthSplitLayout({
 }) {
   return (
     <div className="relative flex min-h-screen w-full overflow-hidden bg-[#0b1326] text-[#dae2fd]">
-      <header className="fixed left-0 top-0 z-50 flex w-full items-center px-4 py-4 md:px-16 md:py-6">
+      <header className="fixed left-0 top-0 z-50 flex w-full items-center px-4 py-4 md:px-16 md:py-10">
         <div className="font-['Plus_Jakarta_Sans'] text-2xl font-bold tracking-[-0.04em] text-[#d2bbff] md:text-3xl">
-          Lumina Studio
+          Pipeline Studio
         </div>
       </header>
 
