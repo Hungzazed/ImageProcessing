@@ -2,6 +2,9 @@ import React from 'react';
 
 interface ExportStepProps {
   uploadedFile: any;
+  originalImageUrl: string;
+  processedImageUrl: string | null;
+  jobAssets?: Array<{ key: string; stage: string; size: number; lastModified: string | null; url: string }>;
   getProcessedFilterStyle: () => React.CSSProperties;
   enableWatermark: boolean;
   watermarkText: string;
@@ -23,6 +26,9 @@ interface ExportStepProps {
 
 export default function ExportStep({
   uploadedFile,
+  originalImageUrl,
+  processedImageUrl,
+  jobAssets = [],
   getProcessedFilterStyle,
   enableWatermark,
   watermarkText,
@@ -50,26 +56,26 @@ export default function ExportStep({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left card */}
-        <div className="glass-panel p-6 rounded-[24px] border border-white/10 space-y-6 shadow-2xl">
+        <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6 shadow-2xl">
           <h3 className="font-display text-xl font-bold text-white">Download Visual Work</h3>
 
-          <div className="w-full aspect-[4/3] rounded-xl overflow-hidden bg-black/30 flex items-center justify-center relative border border-white/5">
+          <div className="w-full aspect-4/3 rounded-xl overflow-hidden bg-black/30 flex items-center justify-center relative border border-white/5">
             <img
               alt="Final Output"
               className="max-w-full max-h-full object-contain"
-              style={getProcessedFilterStyle()}
-              src={uploadedFile.previewUrl}
+              style={processedImageUrl ? undefined : getProcessedFilterStyle()}
+              src={processedImageUrl || originalImageUrl}
             />
             {enableWatermark && (
               <div
                 className="absolute font-bold text-white tracking-widest pointer-events-none z-10 text-shadow"
                 style={{
                   opacity: watermarkOpacity,
-                  ...(watermarkPosition === 'bottom-right' ? { bottom: '24px', right: '24px' } : {}),
-                  ...(watermarkPosition === 'bottom-left' ? { bottom: '24px', left: '24px' } : {}),
-                  ...(watermarkPosition === 'top-right' ? { top: '24px', right: '24px' } : {}),
-                  ...(watermarkPosition === 'top-left' ? { top: '24px', left: '24px' } : {}),
-                  ...(watermarkPosition === 'center' ? { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' } : {}),
+                  ...(watermarkPosition === 'bottom-right' ? { insetBlockEnd: '24px', insetInlineEnd: '24px' } : {}),
+                  ...(watermarkPosition === 'bottom-left' ? { insetBlockEnd: '24px', insetInlineStart: '24px' } : {}),
+                  ...(watermarkPosition === 'top-right' ? { insetBlockStart: '24px', insetInlineEnd: '24px' } : {}),
+                  ...(watermarkPosition === 'top-left' ? { insetBlockStart: '24px', insetInlineStart: '24px' } : {}),
+                  ...(watermarkPosition === 'center' ? { insetBlockStart: '50%', insetInlineStart: '50%', transform: 'translate(-50%, -50%)' } : {}),
                 }}
               >
                 {watermarkText}
@@ -79,7 +85,7 @@ export default function ExportStep({
 
           <div className="space-y-3">
             <a
-              href={uploadedFile.previewUrl}
+              href={processedImageUrl || originalImageUrl}
               download={`processed_${uploadedFile.name}`}
               className="w-full py-4 bg-primary text-on-primary font-display text-base font-bold rounded-xl shadow-[0_0_20px_rgba(210,187,255,0.3)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2 select-none cursor-pointer"
             >
@@ -89,7 +95,7 @@ export default function ExportStep({
 
             <button
               onClick={() => {
-                navigator.clipboard.writeText(`https://image-pipeline-bucket.s3.amazonaws.com/processed/${jobId}/final.webp`);
+                navigator.clipboard.writeText(processedImageUrl || originalImageUrl);
                 alert('Copied AWS S3 data link!');
               }}
               className="w-full py-3 glass-card border border-white/10 hover:bg-white/10 text-sm font-semibold rounded-xl active:scale-[0.98] transition-all flex items-center justify-center gap-2 select-none cursor-pointer"
@@ -106,10 +112,35 @@ export default function ExportStep({
               LAUNCH NEW IMAGE PIPELINE
             </button>
           </div>
+
+          {jobAssets.length > 0 && (
+            <div className="space-y-3 border-t border-white/5 pt-4">
+              <h4 className="text-xs font-bold text-white uppercase tracking-wider">All Files In Processed Folder</h4>
+              <div className="grid grid-cols-2 gap-3">
+                {jobAssets.map((asset) => (
+                  <a
+                    key={asset.key}
+                    href={asset.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="group rounded-xl overflow-hidden border border-white/5 bg-white/2 hover:bg-white/4 transition-colors"
+                  >
+                    <div className="aspect-video overflow-hidden bg-black/30">
+                      <img alt={asset.key} src={asset.url} className="h-full w-full object-cover group-hover:scale-[1.02] transition-transform" />
+                    </div>
+                    <div className="px-3 py-2 text-[10px] text-slate-400 flex items-center justify-between gap-2">
+                      <span className="uppercase text-primary font-bold">{asset.stage}</span>
+                      <span className="truncate max-w-30">{asset.key.split('/').pop()}</span>
+                    </div>
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right card */}
-        <div className="glass-panel p-6 rounded-[24px] border border-white/10 space-y-6 shadow-2xl flex flex-col justify-between">
+        <div className="glass-panel p-6 rounded-3xl border border-white/10 space-y-6 shadow-2xl flex flex-col justify-between">
           <div>
             <h3 className="font-display text-xl font-bold text-white mb-2">Event Notification Center</h3>
             <p className="text-xs text-on-surface-variant leading-relaxed">
@@ -220,7 +251,7 @@ export default function ExportStep({
                     subHistory.map((sub, index) => (
                       <tr key={index} className="border-b border-white/5 text-slate-300">
                         <td className="py-2 capitalize font-semibold">{sub.channel}</td>
-                        <td className="py-2 max-w-[120px] truncate">{sub.destination}</td>
+                        <td className="py-2 max-w-30 truncate">{sub.destination}</td>
                         <td className="py-2">{sub.events.join(', ')}</td>
                         <td className="py-2 text-right">
                           <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded font-bold uppercase">Active</span>

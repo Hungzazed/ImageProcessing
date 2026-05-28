@@ -37,12 +37,12 @@ export function LoginPage() {
 
     try {
       const result = await authApi.login(form);
-
       const profile = await authApi.getUserByEmail(result.user?.email || form.email);
       const sessionUser = authApi.mergeAuthAndProfile(result.user, profile);
 
       authStorage.saveSession(result.accessToken, sessionUser);
       dispatch(setSession({ accessToken: result.accessToken, user: sessionUser }));
+
       router.push('/dashboard');
     } catch (submitError: any) {
       setError(submitError.message);
@@ -137,6 +137,8 @@ export function LoginPage() {
   );
 }
 
+
 export default function Page() {
   return null;
 }
+
