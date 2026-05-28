@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../../stores/authStore';
 import { listenEvent } from '../../events/eventBus';
 import Breadcrumbs from './Breadcrumbs';
@@ -30,6 +31,7 @@ interface ShellNotification {
 }
 
 export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
+  const router = useRouter();
   const { user, logout } = useAuthStore();
   const [notifications, setNotifications] = useState<ShellNotification[]>([
     {
@@ -234,6 +236,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
                     onClick={() => {
                       setProfileOpen(false);
                       logout();
+                      router.push('/auth/login');
                     }}
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-rose-950/40 hover:text-accent-rose cursor-pointer text-gray-400 hover:font-medium transition-colors"
                   >

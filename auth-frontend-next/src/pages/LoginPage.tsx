@@ -43,6 +43,35 @@ export function LoginPage() {
       authStorage.saveSession(result.accessToken, sessionUser);
       dispatch(setSession({ accessToken: result.accessToken, user: sessionUser }));
 
+      // Synchronize with parent Shell cookies and Zustand
+      document.cookie = `auth_access_token=${result.accessToken}; path=/; max-age=2592000; SameSite=Strict`;
+      document.cookie = `auth_user=${encodeURIComponent(JSON.stringify(sessionUser))}; path=/; max-age=2592000; SameSite=Strict`;
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('auth-login', {
+            detail: { accessToken: result.accessToken, user: sessionUser },
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent('navigate', {
+            detail: { path: '/dashboard' },
+          })
+        );
+
+        if (window !== window.parent) {
+          window.parent.postMessage({
+            type: 'auth-login',
+            accessToken: result.accessToken,
+            user: sessionUser,
+          }, '*');
+          window.parent.postMessage({
+            type: 'navigate',
+            path: '/dashboard',
+          }, '*');
+        }
+      }
+
       router.push('/dashboard');
     } catch (submitError: any) {
       setError(submitError.message);
@@ -137,8 +166,5 @@ export function LoginPage() {
   );
 }
 
-
-export default function Page() {
-  return null;
-}
+export default LoginPage;
 
