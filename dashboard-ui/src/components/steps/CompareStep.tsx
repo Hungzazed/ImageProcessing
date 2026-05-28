@@ -2,6 +2,9 @@ import React from 'react';
 
 interface CompareStepProps {
   uploadedFile: any;
+  originalImageUrl: string;
+  processedImageUrl: string | null;
+  stageImageUrls?: Partial<Record<'startPipeline' | 'resize' | 'filter' | 'watermark' | 'compress', string>>;
   sliderPosition: number;
   setSliderPosition: (pos: number) => void;
   getProcessedFilterStyle: () => React.CSSProperties;
@@ -11,10 +14,16 @@ interface CompareStepProps {
   watermarkPosition: string;
   compressFormat: string;
   setStep: (step: 1 | 2 | 3 | 4 | 5) => void;
+  jobAssets?: Array<{ key: string; stage: string; size: number; lastModified: string | null; url: string }>;
+  onSelectAsset?: (url: string) => void;
+  onDownloadAsset?: (url: string, filename?: string) => void;
 }
 
 export default function CompareStep({
   uploadedFile,
+  originalImageUrl,
+  processedImageUrl,
+  stageImageUrls = {},
   sliderPosition,
   setSliderPosition,
   getProcessedFilterStyle,
@@ -24,6 +33,9 @@ export default function CompareStep({
   watermarkPosition,
   compressFormat,
   setStep,
+  jobAssets = [],
+  onSelectAsset,
+  onDownloadAsset,
 }: CompareStepProps) {
   return (
     <div className="w-full max-w-7xl mx-auto flex flex-col gap-6 z-10">
@@ -49,7 +61,7 @@ export default function CompareStep({
             <img
               alt="Original"
               className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-              src={uploadedFile.previewUrl}
+              src={originalImageUrl}
             />
             <div className="absolute top-4 left-4 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-md border border-white/10 text-[10px] font-bold tracking-wider text-primary z-20">
               PROCESSED IMAGE (AFTER)
@@ -65,8 +77,8 @@ export default function CompareStep({
               <img
                 alt="Processed"
                 className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                style={getProcessedFilterStyle()}
-                src={uploadedFile.previewUrl}
+                style={processedImageUrl ? undefined : getProcessedFilterStyle()}
+                src={processedImageUrl || originalImageUrl}
               />
 
               {enableWatermark && (
@@ -142,39 +154,30 @@ export default function CompareStep({
           <div className="glass-panel p-6 rounded-2xl border border-white/10 space-y-4">
             <h3 className="font-display text-lg font-bold text-white">Pipeline History (Pipeline Album)</h3>
             <div className="grid grid-cols-3 gap-3">
-              <div className="glass-card p-2 rounded-xl border border-white/5 flex flex-col items-center">
-                <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/20 flex items-center justify-center">
-                  <img alt="Step Resize" className="object-cover h-full w-full" src={uploadedFile.previewUrl} />
-                </div>
-                <span className="text-[10px] text-slate-400 font-semibold mt-2">Resize</span>
-              </div>
-              <div className="glass-card p-2 rounded-xl border border-white/5 flex flex-col items-center">
-                <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/20 flex items-center justify-center">
-                  <img
-                    alt="Step Filter"
-                    className="object-cover h-full w-full"
-                    style={getProcessedFilterStyle()}
-                    src={uploadedFile.previewUrl}
-                  />
-                </div>
-                <span className="text-[10px] text-slate-400 font-semibold mt-2">Filter</span>
-              </div>
-              <div className="glass-card p-2 rounded-xl border border-white/5 flex flex-col items-center">
-                <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/20 flex items-center justify-center relative">
-                  <img
-                    alt="Step Final"
-                    className="object-cover h-full w-full"
-                    style={getProcessedFilterStyle()}
-                    src={uploadedFile.previewUrl}
-                  />
-                  {enableWatermark && (
-                    <div className="absolute text-[8px] text-white/50 font-bold bottom-1 right-1 pointer-events-none scale-75">
-                      {watermarkText.slice(0, 8)}...
+              {jobAssets.length === 0 ? (
+                <div className="col-span-3 text-sm text-slate-400">No stage assets available yet.</div>
+              ) : (
+                jobAssets.map((asset) => (
+                  <div key={asset.key} className="glass-card p-2 rounded-xl border border-white/5 flex flex-col items-center">
+                    <div className="w-full aspect-square rounded-lg overflow-hidden bg-black/20 flex items-center justify-center relative">
+                      <img
+                        alt={asset.stage}
+                        className="object-cover h-full w-full"
+                        src={asset.url}
+                        onClick={() => onSelectAsset && onSelectAsset(asset.url)}
+                      />
+                      <button
+                        onClick={() => onDownloadAsset && onDownloadAsset(asset.url, asset.key.split('/').pop())}
+                        title="Download"
+                        className="absolute top-2 right-2 bg-black/40 p-1 rounded-md text-xs"
+                      >
+                        <span className="material-symbols-outlined">download</span>
+                      </button>
                     </div>
-                  )}
-                </div>
-                <span className="text-[10px] text-primary font-bold mt-2">Completed</span>
-              </div>
+                    <span className="text-[10px] text-slate-400 font-semibold mt-2 capitalize">{asset.stage}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>

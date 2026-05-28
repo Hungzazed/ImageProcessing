@@ -1,0 +1,101 @@
+================================================================================
+          HỆ THỐNG XỬ LÝ ẢNH SERVERLESS & ĐẨY THÔNG BÁO THỜI GIAN THỰC
+                   TRÊN NỀN TẢNG MICRO FRONTEND (MFE)
+================================================================================
+
+1. TỔNG QUAN DỰ ÁN
+--------------------------------------------------------------------------------
+Dự án là một hệ thống xử lý ảnh bất đồng bộ hiệu năng cao chạy hoàn toàn trên mô hình
+Serverless (AWS Cloud) kết hợp với kiến trúc giao diện Micro Frontend (MFE) hiện đại.
+Hệ thống giải quyết bài toán xử lý các tác vụ ảnh nặng (như thay đổi kích thước,
+áp dụng bộ lọc, chèn logo đóng dấu bản quyền, nén và chuyển định dạng tối ưu)
+mà không gây nghẽn kết nối của người dùng, đồng thời liên tục cập nhật tiến độ
+xử lý thời gian thực (real-time progress) xuống giao diện trực quan thông qua WebSockets.
+
+2. CẤU TRÚC KIẾN TRÚC HỆ THỐNG (SYSTEM ARCHITECTURE)
+--------------------------------------------------------------------------------
+Hệ thống được chia làm 3 khối chức năng chính được thiết kế phi trạng thái (stateless)
+và tách biệt hoàn toàn (decoupled):
+
+A. Pipeline Xử lý Ảnh (image-pipeline-app):
+   - Hoạt động theo kiến trúc hướng sự kiện (Event-Driven Architecture) sử dụng 
+     AWS SQS làm hàng đợi thông điệp (Message Broker) và AWS S3 làm bộ lưu trữ tệp.
+   - Được triển khai bằng Serverless Framework với 5 dịch vụ AWS Lambda chuyên biệt:
+     + 00-start: Nhận yêu cầu từ API Gateway, kiểm tra hợp lệ, cấp UUID (jobId, 
+       imageId), ghi nhận sự kiện bắt đầu và đẩy tin nhắn vào ResizeQueue.
+     + 01-resize: Tự động kích hoạt bởi ResizeQueue, thực hiện đổi kích thước ảnh
+       bằng thư viện Sharp (C++ tối ưu hóa cực nhanh), đẩy kết quả lên S3 và 
+       gửi tin nhắn đến FilterQueue.
+     + 02-filter: Tự động kích hoạt bởi FilterQueue, áp dụng bộ lọc (grayscale, 
+       sepia, blur, brightness), ghi tệp lên S3 và chuyển tiếp sang WatermarkQueue.
+     + 03-watermark: Tự động kích hoạt bởi WatermarkQueue, ghép chữ nghệ thuật SVG 
+       hoặc ảnh logo đè lên ảnh gốc theo tùy chọn vị trí và độ mờ, đẩy tiếp tin 
+       nhắn vào CompressQueue.
+     + 04-compress: Tự động kích hoạt bởi CompressQueue, thực hiện chuyển đổi định 
+       dạng (JPEG, PNG, WebP) và tối ưu hóa nén dung lượng, ghi tệp hoàn thiện 
+       cuối cùng lên S3 và gửi sự kiện thành công vào NotificationQueue.
+
+B. Dịch vụ Thông báo Serverless (notification-serverless):
+   - Đảm nhận vai trò tiêu thụ các sự kiện tiến trình từ hàng đợi NotificationQueue.
+   - Thực thi điều phối thông tin đa kênh:
+     + Đẩy Real-time WebSockets: Gọi GraphQL Mutation của AWS AppSync để đẩy trực 
+       tiếp tiến độ từng bước xử lý đến client đang đăng ký Subscription.
+     + Gửi Email Tự động: Sử dụng Amazon SES để gửi thông báo hoàn tất kèm link 
+       tải ảnh và các thông số kỹ thuật (dung lượng gốc, dung lượng nén, tỷ lệ nén).
+     + Gọi HTTP Webhook: Đẩy thông tin tiến trình đến hệ thống bên thứ ba cấu hình 
+       sẵn với cơ chế tự động thử lại (retry) khi gặp lỗi.
+     + DynamoDB Storage: Lưu trữ cấu hình nhận thông báo của người dùng (Subscriptions 
+       table) và ghi lịch sử trạng thái gửi để theo dõi sự cố (History table).
+
+C. Kiến trúc Frontend điều phối (shell-app & dashboard-ui):
+   - Được xây dựng trên Next.js 15 (App Router), React 18, TypeScript và Module Federation
+     (@module-federation/nextjs-mf).
+   - Quantum Shell App (Host - Cổng 3000): Là bộ não điều phối routing, quản lý phiên 
+     đăng nhập (Zustand Auth Store đồng bộ giữa Cookie và LocalStorage) và tích hợp 
+     Axios Interceptors để tự động làm mới token (Refresh Token Queue).
+   - Dashboard UI (Remote - Cổng 3002): Cho phép người dùng cấu hình các bước xử lý ảnh,
+     hiển thị tiến trình trực quan từng bước chạy và so sánh ảnh trước/sau xử lý.
+   - Cơ chế Simulator ngoại tuyến: Cho phép giả lập đầy đủ luồng chạy của AWS SQS/Lambda 
+     khi môi trường Cloud offline, nâng cao năng suất và trải nghiệm của lập trình viên.
+
+3. LUỒNG HOẠT ĐỘNG CHI TIẾT TỪ ĐẦU ĐẾN CUỐI (END-TO-END FLOW)
+--------------------------------------------------------------------------------
+1. Người dùng chọn ảnh và cấu hình xử lý (ví dụ: resize 800x600, lọc màu sepia,
+   đóng dấu bản quyền chữ, xuất định dạng webp chất lượng 80%).
+2. Client tải ảnh lên thư mục inputs/ của AWS S3 bucket và gửi POST /process 
+   kèm S3 Key và các tùy chọn cấu hình đến API Gateway.
+3. Lambda 00-start tiếp nhận yêu cầu, sinh jobId và trả về HTTP 200 kèm jobId ngay 
+   lập tức. Client chuyển hướng sang màn hình live monitor để chờ kết quả.
+4. Giai đoạn xử lý ảnh diễn ra bất đồng bộ qua các queue:
+   [ResizeQueue] -> Lambda 01-resize -> [FilterQueue] -> Lambda 02-filter -> 
+   [WatermarkQueue] -> Lambda 03-watermark -> [CompressQueue] -> Lambda 04-compress.
+5. Sau mỗi công đoạn xử lý thành công hoặc gặp lỗi, các Lambda Worker sẽ gửi một tin 
+   nhắn trạng thái vào NotificationQueue.
+6. Lambda 05-notification-consumer lấy tin nhắn từ NotificationQueue, tra cứu cấu 
+   hình DynamoDB, gọi AWS AppSync đẩy sự kiện WebSockets xuống màn hình Client, 
+   đồng thời gửi email hoàn thành qua AWS SES và lưu nhật ký vào DynamoDB History.
+7. Giao diện Client tự động chuyển đổi hiển thị so sánh ảnh gốc và ảnh sản phẩm
+   cuối cùng lấy trực tiếp từ S3.
+
+4. CÔNG NGHỆ ÁP DỤNG TRONG DỰ ÁN
+--------------------------------------------------------------------------------
+- Điện toán đám mây & Serverless: AWS Lambda, AWS SQS, AWS S3, AWS DynamoDB, 
+  AWS AppSync (GraphQL WebSockets), AWS SES (Simple Email Service), API Gateway.
+- Triển khai hạ tầng (IaC): Serverless Framework v3.
+- Xử lý hình ảnh hiệu năng cao: Node.js 20, Sharp (C++ image processing library).
+- Phát triển Frontend: Next.js 15.1.7, React 18.3.1, TypeScript, Module Federation,
+  Zustand, Axios, Tailwind CSS v3, Framer Motion.
+
+5. ĐIỂM SÁNG KỸ THUẬT & BẢO MẬT (KEY HIGHLIGHTS & SECURITY)
+--------------------------------------------------------------------------------
+- Khả năng tự động co giãn (Auto-scaling): Giải pháp Serverless hoàn toàn giúp hệ 
+  thống xử lý đồng thời hàng ngàn ảnh mà không cần tốn chi phí duy trì server vật lý.
+- Cách ly và cô lập lỗi (Fault tolerance): Nhờ hàng đợi SQS, lỗi ở một bước xử lý 
+  không làm sập toàn bộ hệ thống, dễ dàng debug và chạy lại các job lỗi.
+- Bảo mật đặc quyền tối thiểu (Least Privilege Access): IAM role được chia nhỏ cho 
+  từng Lambda, chỉ cấp quyền ghi/đọc trên đúng S3 Bucket và DynamoDB Table cụ thể.
+- Chống tấn công Directory Traversal: Tên file tải về /tmp trên Lambda được lọc 
+  chặt chẽ bằng path.basename().
+- Micro Frontend Orchestration chuyên nghiệp: Kiến trúc Host-Remote hoạt động độc lập,
+  có cơ chế chuyển trang an toàn qua CustomEvent Bus và bộ giả lập ngoại tuyến tiện lợi.
+================================================================================

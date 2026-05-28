@@ -3,12 +3,13 @@ import axios from 'axios';
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
 export const API_BASE_URL = stripTrailingSlash(
-  process.env.NEXT_PUBLIC_AUTH_API_URL || 'http://localhost:3000'
+  process.env.NEXT_PUBLIC_AUTH_API_URL || 'https://igkhi0x0hd.execute-api.ap-southeast-1.amazonaws.com'
 );
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
+  // withCredentials chỉ dùng nếu backend hỗ trợ CORS credential (Access-Control-Allow-Credentials)
+  withCredentials: false,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -125,6 +125,7 @@ async function publishProgressToAppSync(eventPayload) {
         eventType
         status
         timestamp
+        metadata
       }
     }
   `;

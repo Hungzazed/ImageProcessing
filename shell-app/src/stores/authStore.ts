@@ -12,11 +12,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   isAuthenticated: false,
 
-  login: (accessToken, refreshToken, user) => {
+  login: (accessToken, refreshToken = null, user = null) => {
     // 1. Update Zustand state
     set({
       accessToken,
-      refreshToken,
+      refreshToken: refreshToken || null,
       user,
       isAuthenticated: true,
     });
@@ -30,15 +30,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     };
 
     setCookie(COOKIE_ACCESS_TOKEN, accessToken, cookieOptions);
-    setCookie(COOKIE_REFRESH_TOKEN, refreshToken, cookieOptions);
-    setCookie(COOKIE_USER, JSON.stringify(user), cookieOptions);
+    if (refreshToken) {
+      setCookie(COOKIE_REFRESH_TOKEN, refreshToken, cookieOptions);
+    } else {
+      deleteCookie(COOKIE_REFRESH_TOKEN, { path: '/' });
+    }
+    if (user) {
+      setCookie(COOKIE_USER, JSON.stringify(user), cookieOptions);
+    }
 
     // 3. Fallback to localStorage for hybrid client resilience
     if (typeof window !== 'undefined') {
       localStorage.setItem('auth_access_token', accessToken);
       localStorage.setItem('authToken', accessToken); // Support legacy/standalone microfrontend keys
-      localStorage.setItem('auth_refresh_token', refreshToken);
-      localStorage.setItem('auth_user', JSON.stringify(user));
+      if (refreshToken) {
+        localStorage.setItem('auth_refresh_token', refreshToken);
+      } else {
+        localStorage.removeItem('auth_refresh_token');
+      }
+      if (user) {
+        localStorage.setItem('auth_user', JSON.stringify(user));
+        localStorage.setItem('authUser', JSON.stringify(user)); // Support dashboard-ui key
+      }
     }
   },
 
@@ -62,6 +75,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.removeItem('authToken'); // Clear legacy key
       localStorage.removeItem('auth_refresh_token');
       localStorage.removeItem('auth_user');
+      localStorage.removeItem('authUser'); // Clear dashboard-ui key
     }
   },
 
@@ -89,10 +103,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
-      if (accessToken && refreshToken && user) {
+      if (accessToken && user) {
         set({
           accessToken,
-          refreshToken,
+          refreshToken: refreshToken || null,
           user,
           isAuthenticated: true,
         });
