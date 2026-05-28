@@ -33,7 +33,9 @@ Each processing stage runs as an isolated serverless function triggered by its o
 ```
 
 ### SQS Message Payload (Pipeline Data)
+
 Each queue message passes the complete processing state (context) down the pipeline:
+
 ```json
 {
   "jobId": "uuid-string",
@@ -44,7 +46,12 @@ Each queue message passes the complete processing state (context) down the pipel
   "options": {
     "resize": { "width": 800, "height": 600, "fit": "cover" },
     "filter": { "type": "sepia", "value": 1.2 },
-    "watermark": { "type": "text", "text": "Copyright 2026", "position": "bottom-right", "opacity": 0.5 },
+    "watermark": {
+      "type": "text",
+      "text": "Copyright 2026",
+      "position": "bottom-right",
+      "opacity": 0.5
+    },
     "compression": { "format": "png", "quality": 85 }
   },
   "metadata": {
@@ -54,13 +61,20 @@ Each queue message passes the complete processing state (context) down the pipel
     "size": 204857
   },
   "logs": [
-    { "stage": "InputStage", "status": "completed", "message": "Uploaded successfully", "timestamp": "2026-05-26T14:40:00Z" }
+    {
+      "stage": "InputStage",
+      "status": "completed",
+      "message": "Uploaded successfully",
+      "timestamp": "2026-05-26T14:40:00Z"
+    }
   ]
 }
 ```
 
 ### SQS Notification Payload
+
 At the end of each stage, functions push a status update to the `NotificationQueue`. The message payload adheres to the `IEvent` interface structure:
+
 ```json
 {
   "eventId": "uuid-string",
@@ -86,12 +100,15 @@ At the end of each stage, functions push a status update to the `NotificationQue
 ## Local Development & Setup
 
 ### 1. Prerequisites
+
 - Node.js 20+
 - AWS CLI configured with credentials
 - Serverless Framework CLI (`npm install -g serverless`)
 
 ### 2. Install Dependencies
+
 Run npm install in each function subdirectory:
+
 ```bash
 cd functions/00-start && npm install && cd -
 cd functions/01-resize && npm install && cd -
@@ -102,8 +119,9 @@ cd functions/04-compress && npm install && cd -
 
 > [!WARNING]
 > **AWS Lambda & Sharp Platform Match:**
-> AWS Lambda runs on Linux x64 or ARM64. If you run npm install on macOS or Windows, the installed native binary for `sharp` will not work on Lambda, causing `ELF Header invalid` errors. 
+> AWS Lambda runs on Linux x64 or ARM64. If you run npm install on macOS or Windows, the installed native binary for `sharp` will not work on Lambda, causing `ELF Header invalid` errors.
 > To package `sharp` correctly for Linux x64 Lambda, install it with the target flags:
+>
 > ```bash
 > npm install --os=linux --cpu=x64 sharp
 > ```
@@ -113,9 +131,11 @@ cd functions/04-compress && npm install && cd -
 ## Deployment
 
 Deploy the stack to AWS using Serverless CLI:
+
 ```bash
 serverless deploy --stage dev
 ```
+
 Upon successful deployment, Serverless will output the HTTP endpoint for the `startPipeline` function (e.g., `POST https://xxxx.execute-api.us-east-1.amazonaws.com/dev/process`).
 
 ---
@@ -125,16 +145,24 @@ Upon successful deployment, Serverless will output the HTTP endpoint for the `st
 Currently, the `notification-service` is listening to `image-processing-events` via Kafka (`KafkaConsumer.ts`). Since the pipeline now sends status events to AWS SQS, you can update the notification service to consume messages from the AWS SQS `NotificationQueue`.
 
 ### Step 1: Install SQS Client in Notification Service
+
 ```bash
 npm install @aws-sdk/client-sqs
 ```
 
 ### Step 2: Implement SQS Consumer
+
 Create `SQSConsumer.ts` in `notification-service/src/infrastructure/messaging/`:
+
 ```typescript
-import { SQSClient, ReceiveMessageCommand, DeleteMessageCommand, GetQueueUrlCommand } from '@aws-sdk/client-sqs';
-import { ProcessEvent } from '../../application/use-cases/ProcessEvent';
-import { config } from '../../config/env';
+import {
+  SQSClient,
+  ReceiveMessageCommand,
+  DeleteMessageCommand,
+  GetQueueUrlCommand,
+} from "@aws-sdk/client-sqs";
+import { ProcessEvent } from "../../application/use-cases/ProcessEvent";
+import { config } from "../../config/env";
 
 export class SQSConsumer {
   private sqs: SQSClient;
@@ -153,9 +181,11 @@ export class SQSConsumer {
     console.log(`SQS Consumer starting, resolving queue: ${this.queueName}...`);
 
     try {
-      const response = await this.sqs.send(new GetQueueUrlCommand({
-        QueueName: this.queueName,
-      }));
+      const response = await this.sqs.send(
+        new GetQueueUrlCommand({
+          QueueName: this.queueName,
+        }),
+      );
       this.queueUrl = response.QueueUrl;
       console.log(`Successfully resolved SQS Queue URL: ${this.queueUrl}`);
     } catch (err: any) {
@@ -166,11 +196,13 @@ export class SQSConsumer {
 
     while (this.isRunning && this.queueUrl) {
       try {
-        const response = await this.sqs.send(new ReceiveMessageCommand({
-          QueueUrl: this.queueUrl!,
-          MaxNumberOfMessages: 10,
-          WaitTimeSeconds: 20 // Long polling
-        }));
+        const response = await this.sqs.send(
+          new ReceiveMessageCommand({
+            QueueUrl: this.queueUrl!,
+            MaxNumberOfMessages: 10,
+            WaitTimeSeconds: 20, // Long polling
+          }),
+        );
 
         if (!response.Messages) continue;
 
@@ -181,14 +213,16 @@ export class SQSConsumer {
           }
 
           // Delete message from queue after processing successfully
-          await this.sqs.send(new DeleteMessageCommand({
-            QueueUrl: this.queueUrl!,
-            ReceiptHandle: message.ReceiptHandle!
-          }));
+          await this.sqs.send(
+            new DeleteMessageCommand({
+              QueueUrl: this.queueUrl!,
+              ReceiptHandle: message.ReceiptHandle!,
+            }),
+          );
         }
       } catch (err: any) {
-        console.error('Error polling SQS messages', err.message);
-        await new Promise(resolve => setTimeout(resolve, 5000)); // Backoff on error
+        console.error("Error polling SQS messages", err.message);
+        await new Promise((resolve) => setTimeout(resolve, 5000)); // Backoff on error
       }
     }
   }
@@ -198,4 +232,5 @@ export class SQSConsumer {
   }
 }
 ```
+
 This enables the notification service to seamlessly pick up events from SQS and trigger webhooks or emails based on user subscriptions!
