@@ -94,3 +94,5 @@ export function RegisterPage() {
     </AuthSplitLayout>
   );
 }
+
+export default RegisterPage;

@@ -5,7 +5,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    
+
     if (!file) {
       return NextResponse.json({ success: false, error: 'No file uploaded' }, { status: 400 });
     }
@@ -18,14 +18,14 @@ export async function POST(req: NextRequest) {
       region: process.env.AWS_REGION || 'us-east-1',
     });
 
-    // Handle environment variables safely (supporting both S3_BUCKET and S3_BUCKE typo in .env.local)
-    const rawBucket = process.env.S3_BUCKET || process.env.S3_BUCKE || 'image-pipeline-bucket-prod-108836621838';
+    // Handle environment variables safely with a production bucket fallback.
+    const rawBucket = process.env.S3_BUCKET || 'image-pipeline-bucket-prod-108836621838';
     const parts = rawBucket.split('/');
     const bucketName = parts[0];
     const prefix = parts.slice(1).join('/');
-    
+
     // Upload image to the directory in S3 (supporting custom prefix e.g. "uploads" from .env.local)
-    const key = prefix ? `${prefix}/${file.name}` : `inputs/${file.name}`;
+    const key = prefix ? `${prefix}/${file.name}` : `uploads/${file.name}`;
 
     const command = new PutObjectCommand({
       Bucket: bucketName,

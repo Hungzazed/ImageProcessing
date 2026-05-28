@@ -39,6 +39,36 @@ export function LoginPage() {
       const result = await authApi.login(form);
       authStorage.saveSession(result.accessToken, result.user);
       dispatch(setSession({ accessToken: result.accessToken, user: result.user }));
+
+      // Synchronize with parent Shell cookies and Zustand
+      document.cookie = `auth_access_token=${result.accessToken}; path=/; max-age=2592000; SameSite=Strict`;
+      document.cookie = `auth_user=${encodeURIComponent(JSON.stringify(result.user))}; path=/; max-age=2592000; SameSite=Strict`;
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('auth-login', {
+            detail: { accessToken: result.accessToken, user: result.user },
+          })
+        );
+        window.dispatchEvent(
+          new CustomEvent('navigate', {
+            detail: { path: '/dashboard' },
+          })
+        );
+
+        if (window !== window.parent) {
+          window.parent.postMessage({
+            type: 'auth-login',
+            accessToken: result.accessToken,
+            user: result.user,
+          }, '*');
+          window.parent.postMessage({
+            type: 'navigate',
+            path: '/dashboard',
+          }, '*');
+        }
+      }
+
       router.push('/dashboard');
     } catch (submitError: any) {
       setError(submitError.message);
@@ -132,3 +162,5 @@ export function LoginPage() {
     </AuthSplitLayout>
   );
 }
+
+export default LoginPage;

@@ -12,6 +12,7 @@ import ConfigureStep from '@/components/steps/ConfigureStep';
 import MonitorStep from '@/components/steps/MonitorStep';
 import CompareStep from '@/components/steps/CompareStep';
 import ExportStep from '@/components/steps/ExportStep';
+import { getSharedSession } from '@/utils/session';
 
 type UploadedFile = {
   name: string;
@@ -19,6 +20,16 @@ type UploadedFile = {
   resolution: string;
   previewUrl: string;
   s3Key?: string;
+};
+
+type StageImageUrls = Partial<Record<'startPipeline' | 'resize' | 'filter' | 'watermark' | 'compress', string>>;
+
+type JobAsset = {
+  key: string;
+  stage: 'startPipeline' | 'resize' | 'filter' | 'watermark' | 'compress';
+  size: number;
+  lastModified: string | null;
+  url: string;
 };
 
 type LogMessage = {
@@ -77,31 +88,80 @@ export default function DashboardPage() {
   const [subEvents, setSubEvents] = useState<string[]>(['image.completed', 'image.failed']);
   const [subHistory, setSubHistory] = useState<any[]>([]);
   const [saveSubStatus, setSaveSubStatus] = useState('');
+  const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
+  const [stageImageUrls, setStageImageUrls] = useState<StageImageUrls>({});
+  const [jobAssets, setJobAssets] = useState<JobAsset[]>([]);
+  const hasRealtimeConfig = Boolean(
+    process.env.NEXT_PUBLIC_APPSYNC_ENDPOINT && process.env.NEXT_PUBLIC_APPSYNC_API_KEY
+  );
 
   // ----------------------------------------------------
   // Initialize Session
   // ----------------------------------------------------
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedToken = window.localStorage.getItem('authToken');
-      const storedUser = window.localStorage.getItem('authUser');
-      if (storedToken) {
-        setToken(storedToken);
-        if (storedUser) {
-          try {
-            setUser(JSON.parse(storedUser));
-          } catch {
-            setUser({ id: 'user-999', name: 'Creative Creator', email: 'creator@lumina.studio' });
-          }
-        }
-      } else {
-        // Fallback demo user
-        const demoUser = { id: 'user-999', name: 'Creative Creator', email: 'creator@lumina.studio' };
-        setUser(demoUser);
-        setToken('demo-token');
-      }
-    }
+    const session = getSharedSession();
+    setToken(session.accessToken);
+    setUser(session.user);
   }, []);
+
+  const getPublicS3Url = (s3Key?: string | null) => {
+    if (!s3Key) return null;
+
+    const bucket = process.env.NEXT_PUBLIC_S3_BUCKET || 'image-pipeline-bucket-prod-108836621838';
+    const region = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
+    const normalizedKey = s3Key.replace(/^\/+/, '');
+
+    return `https://${bucket}.s3.${region}.amazonaws.com/${normalizedKey}`;
+  };
+
+  const refreshJobAssets = async (activeJobId: string) => {
+    if (!activeJobId) return;
+
+    try {
+      const response = await fetch(`/api/job-assets?jobId=${encodeURIComponent(activeJobId)}`);
+      const payload = await response.json();
+
+      if (!response.ok || !payload.success) {
+        return;
+      }
+
+      const assets: JobAsset[] = Array.isArray(payload.items) ? payload.items : [];
+      setJobAssets(assets);
+
+      const mappedStages = assets.reduce<StageImageUrls>((acc, item) => {
+        acc[item.stage] = item.url;
+        return acc;
+      }, {});
+
+      setStageImageUrls((prev) => ({
+        ...prev,
+        ...mappedStages,
+      }));
+
+      const finalAsset = assets.find((item) => item.stage === 'compress') || assets[assets.length - 1];
+      if (finalAsset?.url) {
+        setProcessedImageUrl(finalAsset.url);
+      }
+    } catch (error) {
+      console.warn('Unable to load S3 assets for job', activeJobId, error);
+    }
+  };
+
+  const onSelectAsset = (url: string) => {
+    if (!url) return;
+    setProcessedImageUrl(url);
+  };
+
+  const onDownloadAsset = (url: string, filename?: string) => {
+    if (!url) return;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'asset';
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  };
 
   // Real-time Event Receiver
   const handleProgressEvent = (event: ProgressEvent) => {
@@ -144,6 +204,8 @@ export default function DashboardPage() {
     }
 
     if (stageKey) {
+      const stageUrl = getPublicS3Url(metadata?.s3Key);
+
       setNodeStatus((prev) => ({
         ...prev,
         [stageKey]: {
@@ -151,6 +213,17 @@ export default function DashboardPage() {
           size: metadata?.size ? formatBytes(metadata.size) : undefined,
         },
       }));
+
+      if (stageUrl) {
+        setStageImageUrls((prev) => ({
+          ...prev,
+          [stageKey]: stageUrl,
+        }));
+
+        if (eventType === 'image.completed') {
+          setProcessedImageUrl(stageUrl);
+        }
+      }
     }
 
     setLogs((prev) => [
@@ -166,6 +239,7 @@ export default function DashboardPage() {
     // Check if pipeline is fully complete
     if (eventType === 'image.completed') {
       setIsProcessing(false);
+      void refreshJobAssets(jobId || event.jobId);
       setTimeout(() => {
         setStep(4); // Automatically navigate to comparison screen!
       }, 1500);
@@ -264,10 +338,10 @@ export default function DashboardPage() {
     setNodeStatus(initNodeStatus);
     setStep(3); // Navigate to live monitoring dashboard!
 
-    const simulatedJobId = 'job-' + Math.random().toString(36).substr(2, 9);
-    const simulatedImageId = 'img-' + Math.random().toString(36).substr(2, 9);
-    setJobId(simulatedJobId);
-    setImageId(simulatedImageId);
+    const fallbackJobId = 'job-' + Math.random().toString(36).substr(2, 9);
+    const fallbackImageId = 'img-' + Math.random().toString(36).substr(2, 9);
+    setJobId(fallbackJobId);
+    setImageId(fallbackImageId);
 
     // 1. Verify S3 original file status
     if (s3Uploaded) {
@@ -296,7 +370,12 @@ export default function DashboardPage() {
     try {
       const options: PipelineOptions = {};
       if (enableResize) {
-        options.resize = { width: resizeWidth, height: resizeHeight, fit: resizeFit };
+        const resizeOptions = Object.fromEntries([
+          ['width', resizeWidth],
+          ['height', resizeHeight],
+          ['fit', resizeFit],
+        ]) as NonNullable<PipelineOptions['resize']>;
+        options.resize = resizeOptions;
       }
       if (enableFilter) {
         options.filter = { type: filterType, value: filterIntensity / 50 };
@@ -313,11 +392,18 @@ export default function DashboardPage() {
         options.compression = { format: compressFormat, quality: compressQuality };
       }
 
-      await pipelineApi.startProcess({
+      const responseData = await pipelineApi.startProcess({
         userId: user?.id || 'user-999',
         s3Key: uploadedFile.s3Key || `inputs/${uploadedFile.name}`,
         options,
       });
+
+      const actualJobId = responseData?.data?.jobId || responseData?.jobId || fallbackJobId;
+      const actualImageId = responseData?.data?.imageId || responseData?.imageId || fallbackImageId;
+
+      setJobId(actualJobId);
+      setImageId(actualImageId);
+      void refreshJobAssets(actualJobId);
 
       setLogs((prev) => [
         ...prev,
@@ -329,20 +415,25 @@ export default function DashboardPage() {
         },
       ]);
     } catch (err: any) {
-      setLogs((prev) => [
-        ...prev,
-        {
-          timestamp: new Date().toLocaleTimeString(),
-          stage: 'startPipeline',
-          message: `API Gateway trigger failed: ${err.message}. Falling back to Sandbox Simulation mode...`,
-          status: 'error',
-        },
-      ]);
-      console.warn('API Gateway POST failed, using simulation mode:', err.message);
+        const details = err?.response?.data || err?.response || err?.message;
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date().toLocaleTimeString(),
+            stage: 'startPipeline',
+            message: `API Gateway trigger failed: ${err.message}. See console for details.`,
+            status: 'error',
+          },
+        ]);
+        // Log full error details for troubleshooting (status, headers, body)
+        // eslint-disable-next-line no-console
+        console.warn('API Gateway POST failed, using simulation mode:', details);
     }
 
-    // Trigger local pipeline simulator in fallback mode
-    runSimulation(simulatedJobId, simulatedImageId, activeStages, filterType);
+    // Use local simulation only when the real realtime channel is not configured.
+    if (!hasRealtimeConfig) {
+      runSimulation(fallbackJobId, fallbackImageId, activeStages, filterType);
+    }
   };
 
   // Notification setup
@@ -402,6 +493,8 @@ export default function DashboardPage() {
     setJobId('');
     setImageId('');
     setNodeStatus({});
+    setProcessedImageUrl(null);
+    setStageImageUrls({});
     setStep(1);
   };
 
@@ -449,6 +542,23 @@ export default function DashboardPage() {
             disabled={!jobId}
           >
             Export
+          </button>
+          <button
+              className={`font-display text-sm font-semibold text-on-surface-variant hover:text-primary transition-all pb-1 duration-200 outline-none cursor-pointer flex items-center gap-1.5`}
+            onClick={() => {
+              if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('navigate', { detail: { path: '/users' } }));
+                if (window !== window.parent) {
+                  window.parent.postMessage({
+                    type: 'navigate',
+                    path: '/users',
+                  }, '*');
+                }
+              }
+            }}
+          >
+            <span className="material-symbols-outlined text-[16px]">group</span>
+            Manage Users
           </button>
         </nav>
 
@@ -559,6 +669,12 @@ export default function DashboardPage() {
           {step === 4 && uploadedFile && (
             <CompareStep
               uploadedFile={uploadedFile}
+              originalImageUrl={uploadedFile.previewUrl}
+              processedImageUrl={processedImageUrl}
+              stageImageUrls={stageImageUrls}
+              jobAssets={jobAssets}
+              onSelectAsset={onSelectAsset}
+              onDownloadAsset={onDownloadAsset}
               sliderPosition={sliderPosition}
               setSliderPosition={setSliderPosition}
               getProcessedFilterStyle={getProcessedFilterStyle}
@@ -574,6 +690,9 @@ export default function DashboardPage() {
           {step === 5 && uploadedFile && (
             <ExportStep
               uploadedFile={uploadedFile}
+              originalImageUrl={uploadedFile.previewUrl}
+              processedImageUrl={processedImageUrl}
+              jobAssets={jobAssets}
               getProcessedFilterStyle={getProcessedFilterStyle}
               enableWatermark={enableWatermark}
               watermarkText={watermarkText}

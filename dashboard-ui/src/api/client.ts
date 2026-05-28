@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getSharedSession } from '@/utils/session';
 
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
@@ -17,9 +18,9 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      const token = window.localStorage.getItem('authToken') || window.localStorage.getItem('auth_access_token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      const { accessToken } = getSharedSession();
+      if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`;
       }
     }
     return config;
@@ -30,9 +31,17 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
-      error?.response?.data?.message || error?.message || 'Unexpected error';
-    return Promise.reject(new Error(message));
+    const message = error?.response?.data?.message || error?.message || 'Unexpected error';
+    const err: any = new Error(message);
+    // Attach original axios response for richer debugging (status, headers, body)
+    if (error?.response) {
+      err.response = {
+        status: error.response.status,
+        headers: error.response.headers,
+        data: error.response.data,
+      };
+    }
+    return Promise.reject(err);
   }
 );
 

@@ -21,13 +21,13 @@ export interface AuthState {
   refreshToken: string | null;
   user: User | null;
   isAuthenticated: boolean;
-  login: (accessToken: string, refreshToken: string, user: User) => void;
+  login: (accessToken: string, refreshToken?: string | null, user?: User | null) => void;
   logout: () => void;
   hydrate: () => void;
 }
 
 export interface EventBusMap {
-  'auth-login': { accessToken: string; refreshToken: string; user: User };
+  'auth-login': { accessToken: string; refreshToken?: string | null; user: User };
   'auth-logout': undefined;
   'navigate': { path: string };
   'notification': { message: string; type: Notification['type'] };
