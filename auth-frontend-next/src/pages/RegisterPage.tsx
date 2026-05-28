@@ -116,3 +116,4 @@ export function RegisterPage() {
 export default function Page() {
   return null;
 }
+
