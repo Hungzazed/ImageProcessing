@@ -11,7 +11,7 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 exports.handler = async (event) => {
   logger.info('Processing resize event batch', { recordCount: event.Records.length });
-
+  logger.info('Event resize stage: ', {event})
   for (const record of event.Records) {
     let payload;
     try {

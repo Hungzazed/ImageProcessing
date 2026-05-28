@@ -49,7 +49,7 @@ plugins:
   - serverless-appsync-plugin
 
 custom:
-  emailFrom: "noreply@example.com" # Set to a verified AWS SES email address
+  emailFrom: "hungzazed01@gmail.com" # Set to a verified AWS SES email address
 
 appSync:
   name: notification-appsync-${self:provider.stage}
