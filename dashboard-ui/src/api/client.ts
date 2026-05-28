@@ -13,11 +13,11 @@ const apiClient = axios.create({
   },
 });
 
-// Auto-attach authToken from localStorage
+// Auto-attach authToken from localStorage (supports both stand-alone and shell-orchestrated access tokens)
 apiClient.interceptors.request.use(
   (config) => {
     if (typeof window !== 'undefined') {
-      const token = window.localStorage.getItem('authToken');
+      const token = window.localStorage.getItem('authToken') || window.localStorage.getItem('auth_access_token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
