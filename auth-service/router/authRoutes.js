@@ -85,16 +85,30 @@ router.get('/pending', async (req, res) => {
 router.get(
   '/google',
   (req, res, next) => {
-    const frontendUrl = resolveFrontendUrl(req);
-    const callbackURL = `${resolveBackendBaseUrl(req)}/auth/google/callback`;
-    const state = Buffer.from(JSON.stringify({ frontendUrl })).toString('base64url');
+    try {
+      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+        console.error('Google OAuth env missing:', {
+          hasClientId: Boolean(process.env.GOOGLE_CLIENT_ID),
+          hasClientSecret: Boolean(process.env.GOOGLE_CLIENT_SECRET),
+        });
 
-    return passport.authenticate('google', {
-      callbackURL,
-      state,
-      scope: ['profile', 'email'],
-      session: false
-    })(req, res, next);
+        return res.status(500).json({ message: 'Google OAuth is not configured on the server' });
+      }
+
+      const frontendUrl = resolveFrontendUrl(req);
+      const callbackURL = `${resolveBackendBaseUrl(req)}/auth/google/callback`;
+      const state = Buffer.from(JSON.stringify({ frontendUrl })).toString('base64url');
+
+      return passport.authenticate('google', {
+        callbackURL,
+        state,
+        scope: ['profile', 'email'],
+        session: false
+      })(req, res, next);
+    } catch (error) {
+      console.error('GET /auth/google error', error && (error.stack || error.message || error));
+      return res.status(500).json({ message: 'Google OAuth failed before redirect' });
+    }
   }
 );
 
