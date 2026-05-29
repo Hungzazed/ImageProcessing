@@ -6,6 +6,14 @@ const { auth } = require('../middleware/auth');
 
 const { login, register, verifyOtp, refreshToken, logout, googleCallback, getProfile, verifyToken, forgotPassword, resetPassword } = require('../controller/authController');
 
+const encodeBase64Url = (value) => Buffer.from(String(value), 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+const decodeBase64Url = (value) => {
+  const normalized = String(value).replace(/-/g, '+').replace(/_/g, '/');
+  const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
+
+  return Buffer.from(padded, 'base64').toString('utf8');
+};
+
 const primaryFrontendUrl = process.env.FRONTEND_URL;
 const extraFrontendUrls = process.env.FRONTEND_URLS
   ? process.env.FRONTEND_URLS.split(',').map((url) => url.trim()).filter(Boolean)
@@ -30,7 +38,7 @@ const resolveFrontendUrl = (req) => {
     if (!req.query.state) return null;
 
     try {
-      const decodedState = JSON.parse(Buffer.from(String(req.query.state), 'base64url').toString('utf8'));
+      const decodedState = JSON.parse(decodeBase64Url(String(req.query.state)));
       return decodedState && typeof decodedState.frontendUrl === 'string' ? decodedState.frontendUrl : null;
     } catch {
       return null;
@@ -97,7 +105,7 @@ router.get(
 
       const frontendUrl = resolveFrontendUrl(req);
       const callbackURL = `${resolveBackendBaseUrl(req)}/auth/google/callback`;
-      const state = Buffer.from(JSON.stringify({ frontendUrl })).toString('base64url');
+      const state = encodeBase64Url(JSON.stringify({ frontendUrl }));
 
       return passport.authenticate('google', {
         callbackURL,
