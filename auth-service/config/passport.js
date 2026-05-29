@@ -11,7 +11,11 @@ passport.use(
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
-        const email = profile.emails[0].value;
+        const email = profile.emails && profile.emails[0] && profile.emails[0].value;
+
+        if (!email) {
+          return done(new Error('Google account did not return an email address'), null);
+        }
 
         // Tìm user bằng googleId hoặc email
         let user = await User.findOne({
