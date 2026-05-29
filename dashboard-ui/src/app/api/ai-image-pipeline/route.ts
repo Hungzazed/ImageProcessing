@@ -51,27 +51,8 @@ export async function POST(request: NextRequest) {
       body: forwardFormData,
     });
 
-    let payload: any;
     const contentType = response.headers.get('content-type') || '';
-    
-    if (contentType.includes('application/json')) {
-      try {
-        payload = await response.json();
-      } catch (jsonError) {
-        console.error('[AI Pipeline Proxy] Failed to parse response as JSON, falling back to text:', jsonError);
-        try {
-          payload = await response.text();
-        } catch {
-          payload = 'Failed to read response body';
-        }
-      }
-    } else {
-      try {
-        payload = await response.text();
-      } catch {
-        payload = 'Failed to read response body';
-      }
-    }
+    const payload = contentType.includes('application/json') ? await response.json() : await response.text();
 
     if (!response.ok) {
       console.error(`[AI Pipeline Proxy Error] Upstream returned status ${response.status}:`, payload);
@@ -79,7 +60,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(payload, { status: response.status });
   } catch (error: unknown) {
-    console.error('[AI Pipeline Proxy Critical Catch Error]:', error);
     return NextResponse.json(
       {
         success: false,

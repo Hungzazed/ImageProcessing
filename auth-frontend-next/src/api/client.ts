@@ -3,7 +3,7 @@ import axios from 'axios';
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
 export const API_BASE_URL = stripTrailingSlash(
-  process.env.NEXT_PUBLIC_AUTH_API_URL || 'https://igkhi0x0hd.execute-api.ap-southeast-1.amazonaws.com'
+  process.env.NEXT_PUBLIC_AUTH_API_URL || ''
 );
 
 const apiClient = axios.create({
