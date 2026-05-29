@@ -15,19 +15,26 @@ export type AuthUser = {
 };
 
 const AUTH_TOKEN_KEY = 'authToken';
+const AUTH_REFRESH_TOKEN_KEY = 'authRefreshToken';
 const AUTH_USER_KEY = 'authUser';
 
 export const authStorage = {
-  saveSession(accessToken: string, user: AuthUser | null) {
+  saveSession(accessToken: string, refreshToken: string | null, user: AuthUser | null) {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
+    if (refreshToken) {
+      window.localStorage.setItem(AUTH_REFRESH_TOKEN_KEY, refreshToken);
+    } else {
+      window.localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
+    }
     window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
   },
 
   loadSession() {
-    if (typeof window === 'undefined') return { accessToken: null, user: null as AuthUser | null };
+    if (typeof window === 'undefined') return { accessToken: null, refreshToken: null, user: null as AuthUser | null };
 
     const accessToken = window.localStorage.getItem(AUTH_TOKEN_KEY);
+    const refreshToken = window.localStorage.getItem(AUTH_REFRESH_TOKEN_KEY);
     const rawUser = window.localStorage.getItem(AUTH_USER_KEY);
 
     let user: AuthUser | null = null;
@@ -39,12 +46,13 @@ export const authStorage = {
       }
     }
 
-    return { accessToken, user };
+    return { accessToken, refreshToken, user };
   },
 
   clearSession() {
     if (typeof window === 'undefined') return;
     window.localStorage.removeItem(AUTH_TOKEN_KEY);
+    window.localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
     window.localStorage.removeItem(AUTH_USER_KEY);
   },
 };

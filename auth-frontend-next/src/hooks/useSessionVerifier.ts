@@ -18,28 +18,56 @@ export default function useSessionVerifier(onInvalidSession: () => void) {
   }, [onInvalidSession]);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('authToken');
-    if (!storedToken) {
+    const storedSession = authStorage.loadSession();
+    if (!storedSession.accessToken && !storedSession.refreshToken) {
       dispatch(clearSession());
       onInvalidSessionRef.current();
       setLoading(false);
       return;
     }
 
-    const token = storedToken!;
-
     let alive = true;
+
+    async function renewAccessToken(refreshToken: string) {
+      const refreshed = await authApi.refreshAccessToken(refreshToken);
+      const nextAccessToken = refreshed.accessToken;
+      authStorage.saveSession(nextAccessToken, refreshed.refreshToken || refreshToken, storedSession.user);
+      dispatch(setSession({ accessToken: nextAccessToken, user: storedSession.user }));
+      return nextAccessToken;
+    }
 
     async function verify() {
       try {
-        const payload = await authApi.verifyToken(token as string);
+        let token = storedSession.accessToken;
+
+        if (!token && storedSession.refreshToken) {
+          token = await renewAccessToken(storedSession.refreshToken);
+        }
+
+        if (!token) {
+          throw new Error('No access token available');
+        }
+
+        let payload;
+
+        try {
+          payload = await authApi.verifyToken(token);
+        } catch (error) {
+          if (storedSession.refreshToken) {
+            token = await renewAccessToken(storedSession.refreshToken);
+            payload = await authApi.verifyToken(token);
+          } else {
+            throw error;
+          }
+        }
+
         if (!alive) return;
 
         const email = payload.user && payload.user.email ? String(payload.user.email) : '';
         const profile = await authApi.getUserByEmail(email);
         const mergedUser = authApi.mergeAuthAndProfile(payload.user, profile);
 
-        authStorage.saveSession(token, mergedUser);
+        authStorage.saveSession(token, storedSession.refreshToken, mergedUser);
         dispatch(setSession({ accessToken: token, user: mergedUser }));
       } catch {
         authStorage.clearSession();

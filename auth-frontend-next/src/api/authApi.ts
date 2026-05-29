@@ -18,6 +18,12 @@ const userApiClient = axios.create({
 export type LoginPayload = { email: string; password: string };
 export type RegisterPayload = { name: string; email: string; password: string };
 export type ResetPasswordPayload = { email: string; token: string; newPassword: string };
+export type LoginResponse = {
+  message: string;
+  accessToken: string;
+  refreshToken: string;
+  user: AuthUser | null;
+};
 export type CreateUserPayload = {
   username: string;
   email: string;
@@ -79,7 +85,7 @@ const mergeAuthAndProfile = (authUser: AuthUser | null, profile: UserProfile | n
 export const authApi = {
   login: async (payload: LoginPayload) => {
     const { data } = await apiClient.post('/auth/login', payload);
-    return data;
+    return data as LoginResponse;
   },
   register: async (payload: RegisterPayload) => {
     const { data } = await apiClient.post('/auth/register', payload);
@@ -122,8 +128,16 @@ export const authApi = {
     const { data } = await apiClient.post('/auth/reset-password', payload);
     return data;
   },
-  logout: async () => {
-    const { data } = await apiClient.post('/auth/logout');
+  refreshAccessToken: async (refreshToken: string) => {
+    const { data } = await apiClient.post('/auth/refresh-token', { refreshToken }, {
+      headers: { Authorization: `Bearer ${refreshToken}` },
+    });
+    return data as { accessToken: string; refreshToken: string };
+  },
+  logout: async (refreshToken?: string | null) => {
+    const { data } = await apiClient.post('/auth/logout', refreshToken ? { refreshToken } : undefined, {
+      headers: refreshToken ? { Authorization: `Bearer ${refreshToken}` } : undefined,
+    });
     return data;
   },
   verifyToken: async (accessToken: string | null) => {

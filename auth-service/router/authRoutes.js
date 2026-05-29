@@ -26,16 +26,24 @@ const resolveBackendBaseUrl = (req) => {
 
 const resolveFrontendUrl = (req) => {
   const requestedOrigin = req.query.origin;
-  const cookieOrigin = req.cookies?.oauthRedirectOrigin;
+  const stateOrigin = (() => {
+    if (!req.query.state) return null;
+
+    try {
+      const decodedState = JSON.parse(Buffer.from(String(req.query.state), 'base64url').toString('utf8'));
+      return decodedState && typeof decodedState.frontendUrl === 'string' ? decodedState.frontendUrl : null;
+    } catch {
+      return null;
+    }
+  })();
 
   // First priority: Check if requested origin is in allowed list
-  if (requestedOrigin && allowedFrontendOrigins.has(requestedOrigin)) {
-    return requestedOrigin;
+  if (stateOrigin && allowedFrontendOrigins.has(stateOrigin)) {
+    return stateOrigin;
   }
 
-  // Second priority: Check if cookie origin is in allowed list
-  if (cookieOrigin && allowedFrontendOrigins.has(cookieOrigin)) {
-    return cookieOrigin;
+  if (requestedOrigin && allowedFrontendOrigins.has(requestedOrigin)) {
+    return requestedOrigin;
   }
 
   // Fallback: Use requested origin if it looks like localhost (for dev purposes)
@@ -64,17 +72,11 @@ router.get(
   (req, res, next) => {
     const frontendUrl = resolveFrontendUrl(req);
     const callbackURL = `${resolveBackendBaseUrl(req)}/auth/google/callback`;
-
-    res.cookie('oauthRedirectOrigin', frontendUrl, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 10 * 60 * 1000,
-    });
+    const state = Buffer.from(JSON.stringify({ frontendUrl })).toString('base64url');
 
     return passport.authenticate('google', {
       callbackURL,
+      state,
       scope: ['profile', 'email'],
       session: false
     })(req, res, next);
@@ -90,7 +92,6 @@ router.get(
       const frontendUrl = resolveFrontendUrl(req);
 
       if (error || !user) {
-        res.clearCookie('oauthRedirectOrigin', { path: '/' });
         return res.redirect(`${frontendUrl}/login?error=google_auth_failed`);
       }
 

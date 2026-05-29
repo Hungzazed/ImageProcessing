@@ -40,12 +40,8 @@ export function LoginPage() {
       const profile = await authApi.getUserByEmail(result.user?.email || form.email);
       const sessionUser = authApi.mergeAuthAndProfile(result.user, profile);
 
-      authStorage.saveSession(result.accessToken, sessionUser);
+      authStorage.saveSession(result.accessToken, result.refreshToken, sessionUser);
       dispatch(setSession({ accessToken: result.accessToken, user: sessionUser }));
-
-      // Synchronize with parent Shell cookies and Zustand
-      document.cookie = `auth_access_token=${result.accessToken}; path=/; max-age=2592000; SameSite=Strict`;
-      document.cookie = `auth_user=${encodeURIComponent(JSON.stringify(sessionUser))}; path=/; max-age=2592000; SameSite=Strict`;
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(

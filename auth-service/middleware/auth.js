@@ -13,11 +13,18 @@ const getAccessTokenFromRequest = (req) => {
     return token;
 }
 
-const getAccessTokenFromCookie = (req) => {
-    if (!req.cookies) return null;
+const getRefreshTokenFromRequest = (req) => {
+    const bodyToken = req.body && typeof req.body.refreshToken === 'string' ? req.body.refreshToken.trim() : '';
 
-    const token = req.cookies.accessToken;
-    if (!token) return null;
+    if (bodyToken) return bodyToken;
+
+    const authorization = req.headers['authorization'];
+
+    if (!authorization) return null;
+
+    const [scheme, token] = authorization.split(' ');
+
+    if (scheme !== 'Bearer' || !token) return null;
 
     return token;
 }
@@ -28,7 +35,7 @@ const verifyAccessToken = (token) => {
 
 // Middleware xác thực accessToken
 const auth = function (req, res, next) {
-    const token = getAccessTokenFromRequest(req) || getAccessTokenFromCookie(req);
+    const token = getAccessTokenFromRequest(req);
 
     if (!token) return res.status(401).json({ message: "No token" })
 
@@ -59,4 +66,4 @@ const checkAdmin = async (req, res, next) => {
     }
 }
 
-module.exports = { auth, checkAdmin, getAccessTokenFromRequest, getAccessTokenFromCookie, verifyAccessToken };
+module.exports = { auth, checkAdmin, getAccessTokenFromRequest, getRefreshTokenFromRequest, verifyAccessToken };

@@ -5,7 +5,7 @@ const PasswordResetToken = require("../model/passwordResetToken");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const sendEmail = require("../utils/sendEmail");
-const { getAccessTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
+const { getAccessTokenFromRequest, getRefreshTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
 
 const OTP_EXPIRES_IN_MINUTES = 10;
 const RESET_TOKEN_EXPIRES_IN_MINUTES = 30;
@@ -94,16 +94,14 @@ exports.login = async (req, res)=>{
     user.refreshToken = refreshToken;
     await user.save();
 
-    res.cookie("refreshToken",refreshToken,{
-        httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 7*24*60*60*1000
+    const { password: _, refreshToken: __, ...userData} = user._doc;
+
+    res.json({
+        message: "Login success",
+        accessToken,
+        refreshToken,
+        user: userData
     })
-  const { password: _, refreshToken: __, ...userData} = user._doc;
-    console.log('Login userData with role:', userData);
-    res.json({message:"Login success",accessToken,user : userData})
 }
 
 exports.forgotPassword = async (req, res) => {
@@ -248,7 +246,7 @@ const verifyOtp = async(req, res)=>{
 exports.verifyOtp = verifyOtp;
 exports.verifyEmail = verifyOtp;
 exports.refreshToken = async(req, res)=>{
-    const token = req.cookies.refreshToken;
+    const token = getRefreshTokenFromRequest(req);
 
     if(!token) return res.status(400).json({message:"Refresh token require"})
     
@@ -263,17 +261,16 @@ exports.refreshToken = async(req, res)=>{
             process.env.JWT_ACCESS_SECRET,
             {expiresIn:'15m'}
         )
-        res.json({accessToken: newAccessToken})
+        res.json({accessToken: newAccessToken, refreshToken: token})
     } catch (error) {
         res.status(403).json({message:"Refresh token expired"})
     }      
 }
 exports.logout = async(req,res)=>{
-    const token = req.cookies.refreshToken;
+    const token = getRefreshTokenFromRequest(req);
     if(token){
         await User.updateOne({refreshToken:token},{$set:{refreshToken:null}})
     }
-    res.clearCookie("refreshToken", { path: '/' });
     res.json({message:"logout success"})
 }
 
@@ -298,24 +295,6 @@ exports.googleCallback = async(req, res)=>{
         user.refreshToken = refreshToken;
         await user.save();
 
-        // Set cả refreshToken và accessToken vào cookie (an toàn hơn)
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-
-        res.cookie('accessToken', accessToken, {
-            httpOnly: false, // Frontend cần đọc được
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 15 * 60 * 1000, // 15 phút
-        });
-
-        // Lưu user info vào cookie (tạm thời để transfer)
         const userInfo = JSON.stringify({
             _id: user._id,
             name: user.name,
@@ -323,26 +302,14 @@ exports.googleCallback = async(req, res)=>{
             isVerified: user.isVerified,
             role: user.role
         });
-        
-        res.cookie('tempUserInfo', userInfo, {
-            httpOnly: false,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 10 * 1000, // 10 giây - chỉ để chuyển data
-        });
 
-        res.clearCookie('oauthRedirectOrigin', { path: '/' });
-        
-        // Fallback transfer via URL query avoids callback breakage when browser blocks cross-domain cookie reads.
         const encodedUser = Buffer.from(userInfo).toString('base64url');
-        const redirectUrl = `${callbackFrontendUrl}/callback?accessToken=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(encodedUser)}`;
+        const redirectUrl = `${callbackFrontendUrl}/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(encodedUser)}`;
 
         res.redirect(redirectUrl);
     } catch (error) {
         console.error('Google callback error:', error);
         const callbackFrontendUrl = req.oauthFrontendUrl || FRONTEND_URL;
-        res.clearCookie('oauthRedirectOrigin', { path: '/' });
         res.redirect(`${callbackFrontendUrl}/login?error=google_auth_failed`);
     }
 }
@@ -363,16 +330,13 @@ exports.getProfile = async(req, res) => {
 // Verify access token for API gateway / downstream services
 exports.verifyToken = async (req, res) => {
     const token = getAccessTokenFromRequest(req);
-    const cookieToken = req.cookies?.accessToken;
 
-    if (!token && !cookieToken) {
+    if (!token) {
         return res.status(401).json({ message: "No token" });
     }
 
-    const resolvedToken = token || cookieToken;
-
     try {
-        const decoded = verifyAccessToken(resolvedToken);
+        const decoded = verifyAccessToken(token);
         const user = await User.findById(decoded.id).select('-password -refreshToken');
 
         if (!user) {
@@ -382,7 +346,7 @@ exports.verifyToken = async (req, res) => {
         return res.json({
             valid: true,
             user,
-            accessToken: resolvedToken,
+            accessToken: token,
         });
     } catch (error) {
         return res.status(403).json({ message: "Invalid token" });
