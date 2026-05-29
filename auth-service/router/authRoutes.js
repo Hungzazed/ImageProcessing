@@ -28,14 +28,23 @@ const resolveFrontendUrl = (req) => {
   const requestedOrigin = req.query.origin;
   const cookieOrigin = req.cookies?.oauthRedirectOrigin;
 
+  // First priority: Check if requested origin is in allowed list
   if (requestedOrigin && allowedFrontendOrigins.has(requestedOrigin)) {
     return requestedOrigin;
   }
 
+  // Second priority: Check if cookie origin is in allowed list
   if (cookieOrigin && allowedFrontendOrigins.has(cookieOrigin)) {
     return cookieOrigin;
   }
 
+  // Fallback: Use requested origin if it looks like localhost (for dev purposes)
+  if (requestedOrigin && (requestedOrigin.includes('localhost') || requestedOrigin.includes('127.0.0.1'))) {
+    console.log(`[OAUTH] Fallback: Using requested origin (localhost dev): ${requestedOrigin}`);
+    return requestedOrigin;
+  }
+
+  // Final fallback: Use primary frontend URL
   return primaryFrontendUrl || extraFrontendUrls[0] || 'http://localhost:3001';
 };
 
