@@ -14,22 +14,16 @@ export default function AuthSplitLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative flex min-h-screen w-full overflow-hidden bg-[#0b1326] text-[#dae2fd]">
-      <header className="fixed left-0 top-0 z-50 flex w-full items-center px-4 py-4 md:px-16 md:py-10">
-        <div className="font-['Plus_Jakarta_Sans'] text-2xl font-bold tracking-[-0.04em] text-[#d2bbff] md:text-3xl">
-          Pipeline Studio
-        </div>
-      </header>
-
-      <main className="flex flex-1 items-stretch pt-24 md:pt-0">
-        <div className="grid h-full w-full lg:grid-cols-[1.02fr_0.98fr]">
+    <div className="relative flex min-h-[100dvh] w-full overflow-hidden overflow-x-hidden bg-[#0b1326] text-[#dae2fd]">
+      <main className="flex min-h-[100dvh] flex-1 items-stretch">
+        <div className="grid min-h-[100dvh] h-[100dvh] w-full lg:grid-cols-2">
           <AuthHeroPanel image={image} title={heroTitle} subtitle={heroSubtitle} />
 
-          <section className="relative flex min-h-0 items-center justify-center overflow-hidden bg-[#0b1326] px-4 py-6 sm:px-8 lg:px-10">
-            <div className="absolute right-[-10%] top-[-10%] h-[360px] w-[360px] rounded-full bg-[#7c3aed]/10 blur-[120px]" />
-            <div className="absolute bottom-[-5%] left-[5%] h-[260px] w-[260px] rounded-full bg-[#4cd7f6]/5 blur-[100px]" />
+          <section className="relative flex min-h-0 items-center justify-center overflow-hidden bg-[#0b1326] px-4 py-2 sm:px-8 lg:px-10">
+            <div className="absolute right-[-6%] top-[-12%] h-[260px] w-[260px] rounded-full bg-[#7c3aed]/10 blur-[120px] md:h-[320px] md:w-[320px]" />
+            <div className="absolute bottom-[-10%] left-[5%] h-[180px] w-[180px] rounded-full bg-[#4cd7f6]/5 blur-[90px] md:h-[220px] md:w-[220px]" />
 
-            <div className="relative z-10 flex w-full max-w-[440px] flex-col justify-center">{children}</div>
+            <div className="relative z-10 flex w-full max-w-[420px] flex-col justify-center py-0">{children}</div>
           </section>
         </div>
       </main>

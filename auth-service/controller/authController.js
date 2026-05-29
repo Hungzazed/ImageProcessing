@@ -5,7 +5,7 @@ const PasswordResetToken = require("../model/passwordResetToken");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const sendEmail = require("../utils/sendEmail");
-const { getAccessTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
+const { getAccessTokenFromRequest, getRefreshTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
 
 const OTP_EXPIRES_IN_MINUTES = 10;
 const RESET_TOKEN_EXPIRES_IN_MINUTES = 30;
@@ -18,50 +18,57 @@ const hashToken = (token) => createHash('sha256').update(token).digest('hex');
 exports.register = async(req , res)=>{
     const {name , email , password} = req.body;
 
-    if(!name || !email || !password){
-        return res.status(400).json({message:"Name, email and password are required"});
-    }
-
-    const existingUser = await User.findOne({email});
-    if(existingUser) return res.status(400).json({message:"Email already exists"});
-
-    const passwordHash = await bcrypt.hash(password,10);
-    const otp = generateOtp();
-    const otpHash = await bcrypt.hash(otp, 10);
-    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRES_IN_MINUTES * 60 * 1000);
-
-    await PendingRegistration.deleteOne({email});
-    await PendingRegistration.create({
-        name,
-        email,
-        passwordHash,
-        otpHash,
-        otpExpiresAt
-    });
-
-        try {
-                await sendEmail(
-                        email,
-                        'Xác thực đăng ký bằng OTP',
-                        `
-                            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-                                <h2>Xác thực đăng ký</h2>
-                                <p>Mã OTP của bạn là:</p>
-                                <div style="font-size: 28px; font-weight: 700; letter-spacing: 6px; padding: 12px 16px; background: #f3f4f6; display: inline-block; border-radius: 8px;">
-                                    ${otp}
-                                </div>
-                                <p style="margin-top: 16px;">Mã sẽ hết hạn sau ${OTP_EXPIRES_IN_MINUTES} phút.</p>
-                            </div>
-                        `
-                );
-        } catch (error) {
-                await PendingRegistration.deleteOne({email});
-                return res.status(500).json({message:"Failed to send OTP email"});
+    try {
+        if(!name || !email || !password){
+            return res.status(400).json({message:"Name, email and password are required"});
         }
 
-    res.status(201).json({
-        message:"OTP has been sent to your email. Please verify to complete registration."
-    });
+        const existingUser = await User.findOne({email});
+        if(existingUser) return res.status(400).json({message:"Email already exists"});
+
+        const passwordHash = await bcrypt.hash(password,10);
+        const otp = generateOtp();
+        const otpHash = await bcrypt.hash(otp, 10);
+        const otpExpiresAt = new Date(Date.now() + OTP_EXPIRES_IN_MINUTES * 60 * 1000);
+
+        await PendingRegistration.deleteOne({email});
+        await PendingRegistration.create({
+            name,
+            email,
+            passwordHash,
+            otpHash,
+            otpExpiresAt
+        });
+
+        try {
+            await sendEmail(
+                email,
+                'Xác thực đăng ký bằng OTP',
+                `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+                        <h2>Xác thực đăng ký</h2>
+                        <p>Mã OTP của bạn là:</p>
+                        <div style="font-size: 28px; font-weight: 700; letter-spacing: 6px; padding: 12px 16px; background: #f3f4f6; display: inline-block; border-radius: 8px;">
+                            ${otp}
+                        </div>
+                        <p style="margin-top: 16px;">Mã sẽ hết hạn sau ${OTP_EXPIRES_IN_MINUTES} phút.</p>
+                    </div>
+                `
+            );
+        } catch (error) {
+            await PendingRegistration.deleteOne({email});
+            console.error('register: sendEmail failed', error && (error.stack || error.message || error));
+            return res.status(500).json({message:"Failed to send OTP email"});
+        }
+
+        return res.status(201).json({
+            message:"OTP has been sent to your email. Please verify to complete registration."
+        });
+    } catch (error) {
+        console.error('register: unexpected error', error && (error.stack || error.message || error));
+        try { await PendingRegistration.deleteOne({ email }).catch(()=>{}); } catch(_){}
+        return res.status(500).json({ message: 'Server error', error: error && (error.message || String(error)) });
+    }
 }
 exports.login = async (req, res)=>{
     const {email , password} = req.body;
@@ -87,16 +94,14 @@ exports.login = async (req, res)=>{
     user.refreshToken = refreshToken;
     await user.save();
 
-    res.cookie("refreshToken",refreshToken,{
-        httpOnly: true,
-        secure: false,
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 7*24*60*60*1000
+    const { password: _, refreshToken: __, ...userData} = user._doc;
+
+    res.json({
+        message: "Login success",
+        accessToken,
+        refreshToken,
+        user: userData
     })
-  const { password: _, refreshToken: __, ...userData} = user._doc;
-    console.log('Login userData with role:', userData);
-    res.json({message:"Login success",accessToken,user : userData})
 }
 
 exports.forgotPassword = async (req, res) => {
@@ -241,7 +246,7 @@ const verifyOtp = async(req, res)=>{
 exports.verifyOtp = verifyOtp;
 exports.verifyEmail = verifyOtp;
 exports.refreshToken = async(req, res)=>{
-    const token = req.cookies.refreshToken;
+    const token = getRefreshTokenFromRequest(req);
 
     if(!token) return res.status(400).json({message:"Refresh token require"})
     
@@ -256,17 +261,16 @@ exports.refreshToken = async(req, res)=>{
             process.env.JWT_ACCESS_SECRET,
             {expiresIn:'15m'}
         )
-        res.json({accessToken: newAccessToken})
+        res.json({accessToken: newAccessToken, refreshToken: token})
     } catch (error) {
         res.status(403).json({message:"Refresh token expired"})
     }      
 }
 exports.logout = async(req,res)=>{
-    const token = req.cookies.refreshToken;
+    const token = getRefreshTokenFromRequest(req);
     if(token){
         await User.updateOne({refreshToken:token},{$set:{refreshToken:null}})
     }
-    res.clearCookie("refreshToken", { path: '/' });
     res.json({message:"logout success"})
 }
 
@@ -291,24 +295,6 @@ exports.googleCallback = async(req, res)=>{
         user.refreshToken = refreshToken;
         await user.save();
 
-        // Set cả refreshToken và accessToken vào cookie (an toàn hơn)
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-        });
-
-        res.cookie('accessToken', accessToken, {
-            httpOnly: false, // Frontend cần đọc được
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 15 * 60 * 1000, // 15 phút
-        });
-
-        // Lưu user info vào cookie (tạm thời để transfer)
         const userInfo = JSON.stringify({
             _id: user._id,
             name: user.name,
@@ -316,26 +302,14 @@ exports.googleCallback = async(req, res)=>{
             isVerified: user.isVerified,
             role: user.role
         });
-        
-        res.cookie('tempUserInfo', userInfo, {
-            httpOnly: false,
-            secure: false,
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 10 * 1000, // 10 giây - chỉ để chuyển data
-        });
 
-        res.clearCookie('oauthRedirectOrigin', { path: '/' });
-        
-        // Fallback transfer via URL query avoids callback breakage when browser blocks cross-domain cookie reads.
         const encodedUser = Buffer.from(userInfo).toString('base64url');
-        const redirectUrl = `${callbackFrontendUrl}/callback?accessToken=${encodeURIComponent(accessToken)}&user=${encodeURIComponent(encodedUser)}`;
+        const redirectUrl = `${callbackFrontendUrl}/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(encodedUser)}`;
 
         res.redirect(redirectUrl);
     } catch (error) {
         console.error('Google callback error:', error);
         const callbackFrontendUrl = req.oauthFrontendUrl || FRONTEND_URL;
-        res.clearCookie('oauthRedirectOrigin', { path: '/' });
         res.redirect(`${callbackFrontendUrl}/login?error=google_auth_failed`);
     }
 }
@@ -356,16 +330,13 @@ exports.getProfile = async(req, res) => {
 // Verify access token for API gateway / downstream services
 exports.verifyToken = async (req, res) => {
     const token = getAccessTokenFromRequest(req);
-    const cookieToken = req.cookies?.accessToken;
 
-    if (!token && !cookieToken) {
+    if (!token) {
         return res.status(401).json({ message: "No token" });
     }
 
-    const resolvedToken = token || cookieToken;
-
     try {
-        const decoded = verifyAccessToken(resolvedToken);
+        const decoded = verifyAccessToken(token);
         const user = await User.findById(decoded.id).select('-password -refreshToken');
 
         if (!user) {
@@ -375,7 +346,7 @@ exports.verifyToken = async (req, res) => {
         return res.json({
             valid: true,
             user,
-            accessToken: resolvedToken,
+            accessToken: token,
         });
     } catch (error) {
         return res.status(403).json({ message: "Invalid token" });

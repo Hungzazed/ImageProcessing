@@ -13,8 +13,10 @@ export function DashboardPage() {
   const { state, loading } = useSessionVerifier(() => router.push('/login'));
 
   async function handleLogout() {
+    const { refreshToken } = authStorage.loadSession();
+
     try {
-      await authApi.logout();
+      await authApi.logout(refreshToken);
     } catch {
       // ignore transport error and clear session locally
     }

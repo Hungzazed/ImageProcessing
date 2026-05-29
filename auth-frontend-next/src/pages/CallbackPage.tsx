@@ -6,7 +6,6 @@ import { useDispatch } from 'react-redux';
 import { authApi } from '@/api/authApi';
 import { authStorage } from '@/store/authStorage';
 import { setSession } from '@/store/authSlice';
-import { clearCookie, readCookie } from '@/utils/cookies';
 import AuthCardLayout from '@/layouts/AuthCardLayout';
 
 function decodeBase64Url(value: string) {
@@ -36,25 +35,26 @@ export function CallbackPage() {
     async function finishGoogleAuth() {
       try {
         const accessTokenFromQuery = searchParams?.get('accessToken') || '';
+        const refreshTokenFromQuery = searchParams?.get('refreshToken') || '';
         const encodedUserFromQuery = searchParams?.get('user') || '';
         const decodedUserFromQuery = encodedUserFromQuery
           ? JSON.parse(decodeBase64Url(encodedUserFromQuery))
           : null;
 
-        const accessToken = accessTokenFromQuery || readCookie('accessToken');
-        const tempUserInfo = readCookie('tempUserInfo');
-        const session = accessToken ? await authApi.verifyToken(accessToken) : await authApi.verifySession();
-        const rawUser = decodedUserFromQuery || (tempUserInfo ? JSON.parse(tempUserInfo) : session.user);
+        if (!accessTokenFromQuery || !refreshTokenFromQuery) {
+          throw new Error('Missing Google callback tokens.');
+        }
+
+        const session = await authApi.verifyToken(accessTokenFromQuery);
+        const rawUser = decodedUserFromQuery || session.user;
         const profile = rawUser?.email ? await authApi.getUserByEmail(rawUser.email) : null;
         const user = authApi.mergeAuthAndProfile(rawUser, profile);
-        const resolvedAccessToken = accessToken || session.accessToken || '';
+        const resolvedAccessToken = accessTokenFromQuery || session.accessToken || '';
 
         if (!resolvedAccessToken) throw new Error('No access token was returned after the callback.');
 
-        authStorage.saveSession(resolvedAccessToken, user);
+        authStorage.saveSession(resolvedAccessToken, refreshTokenFromQuery, user);
         dispatch(setSession({ accessToken: resolvedAccessToken, user }));
-        clearCookie('accessToken');
-        clearCookie('tempUserInfo');
 
         if (alive) {
           setStatus('Google sign-in successful. Redirecting to the dashboard...');

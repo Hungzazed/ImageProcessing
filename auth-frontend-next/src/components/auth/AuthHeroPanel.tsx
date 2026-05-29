@@ -21,16 +21,16 @@ export default function AuthHeroPanel({
       )}
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(3,8,20,0.18)_0%,rgba(3,8,20,0.55)_42%,rgba(3,8,20,0.9)_100%)]" />
 
-      <div className="relative flex h-full flex-col justify-between p-10 xl:p-12">
+      <div className="relative flex h-full flex-col justify-between p-6 lg:p-8 xl:p-10">
         <div className="flex items-center justify-start">
           <Link href="/login" className="text-[2rem] font-black tracking-[-0.04em] text-white">
 
           </Link>
         </div>
 
-        <div className="max-w-[460px] pb-10">
-          <h2 className="text-[3.65rem] font-extrabold leading-[0.95] tracking-[-0.05em] text-[#d2bbff]">{title}</h2>
-          <p className="mt-4 max-w-md text-[15px] leading-7 text-white/75">{subtitle}</p>
+        <div className="max-w-[420px] pb-4 lg:pb-6">
+          <h2 className="text-[clamp(1.5rem,4.5vw,2.8rem)] font-extrabold leading-[0.95] tracking-[-0.05em] text-[#d2bbff]">{title}</h2>
+          <p className="mt-2 max-w-md text-xs md:text-sm leading-6 text-white/75">{subtitle}</p>
         </div>
       </div>
     </section>
