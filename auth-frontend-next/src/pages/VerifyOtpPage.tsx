@@ -79,7 +79,7 @@ export function VerifyOtpPage() {
       setSuccess('Xác thực và tạo hồ sơ người dùng thành công. Đang chuyển về màn hình đăng nhập...');
       setTimeout(() => router.push(`/login?verified=1&email=${encodeURIComponent(form.email)}`), 900);
     } catch (submitError: any) {
-      setError(submitError.message);
+      setError(submitError?.message || 'Verify OTP failed');
     } finally {
       setLoading(false);
     }

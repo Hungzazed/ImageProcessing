@@ -228,7 +228,6 @@ const verifyOtp = async(req, res)=>{
 
         try {
             const user = await User.create({
-                name: pendingRegistration.name,
                 email: emailTrimmed,
                 password: pendingRegistration.passwordHash,
                 isVerified: true
