@@ -15,16 +15,18 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 const generateOtp = () => String(randomInt(100000, 1000000));
 const generateResetToken = () => randomBytes(32).toString('hex');
 const hashToken = (token) => createHash('sha256').update(token).digest('hex');
+const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 
 exports.register = async(req , res)=>{
     const {name , email , password} = req.body;
+    const emailNormalized = normalizeEmail(email);
 
     try {
-        if(!name || !email || !password){
+        if(!name || !emailNormalized || !password){
             return res.status(400).json({message:"Name, email and password are required"});
         }
 
-        const existingUser = await User.findOne({email});
+        const existingUser = await User.findOne({email: emailNormalized});
         if(existingUser) return res.status(409).json({message:"Email already exists"});
 
         const passwordHash = await bcrypt.hash(password,10);
@@ -32,10 +34,10 @@ exports.register = async(req , res)=>{
         const otpHash = await bcrypt.hash(otp, 10);
         const otpExpiresAt = new Date(Date.now() + OTP_EXPIRES_IN_MINUTES * 60 * 1000);
 
-        await PendingRegistration.deleteOne({email});
+        await PendingRegistration.deleteOne({email: emailNormalized});
         const pendingRegistration = await PendingRegistration.create({
             name,
-            email,
+            email: emailNormalized,
             passwordHash,
             otpHash,
             otpExpiresAt,
@@ -47,7 +49,7 @@ exports.register = async(req , res)=>{
 
         await enqueueOtpEmail({
             pendingRegistrationId: String(pendingRegistration._id),
-            email,
+            email: emailNormalized,
             otp,
             otpExpiresInMinutes: OTP_EXPIRES_IN_MINUTES,
         });
@@ -57,14 +59,15 @@ exports.register = async(req , res)=>{
         });
     } catch (error) {
         console.error('register: unexpected error', error && (error.stack || error.message || error));
-        try { await PendingRegistration.deleteOne({ email }).catch(()=>{}); } catch(_){}
+        try { await PendingRegistration.deleteOne({ email: emailNormalized }).catch(()=>{}); } catch(_){ }
         return res.status(500).json({ message: 'Server error', error: error && (error.message || String(error)) });
     }
 }
 exports.login = async (req, res)=>{
     const {email , password} = req.body;
+    const emailNormalized = normalizeEmail(email);
 
-    const user = await User.findOne({email});
+    const user = await User.findOne({email: emailNormalized});
 
     if(!user) return res.status(400).json({message:"User not found"});
     if(!user.isVerified) return res.status(403).json({message:"Email is not verified"});
@@ -97,12 +100,13 @@ exports.login = async (req, res)=>{
 
 exports.forgotPassword = async (req, res) => {
     const { email } = req.body;
+    const emailNormalized = normalizeEmail(email);
 
-    if (!email) {
+    if (!emailNormalized) {
         return res.status(400).json({ message: "Email is required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: emailNormalized });
 
     if (!user) {
         return res.status(200).json({
@@ -114,18 +118,18 @@ exports.forgotPassword = async (req, res) => {
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRES_IN_MINUTES * 60 * 1000);
 
-    await PasswordResetToken.deleteOne({ email });
+    await PasswordResetToken.deleteOne({ email: emailNormalized });
     await PasswordResetToken.create({
-        email,
+        email: emailNormalized,
         tokenHash,
         expiresAt
     });
 
     try {
-        const resetUrl = `${FRONTEND_URL}/reset-password?email=${encodeURIComponent(email)}&token=${token}`;
+        const resetUrl = `${FRONTEND_URL}/reset-password?email=${encodeURIComponent(emailNormalized)}&token=${token}`;
 
         await sendEmail(
-            email,
+            emailNormalized,
             'Khôi phục mật khẩu',
             `
                 <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
@@ -143,7 +147,7 @@ exports.forgotPassword = async (req, res) => {
             `
         );
     } catch (error) {
-        await PasswordResetToken.deleteOne({ email });
+        await PasswordResetToken.deleteOne({ email: emailNormalized });
         return res.status(500).json({ message: "Failed to send password reset email" });
     }
 
@@ -154,12 +158,13 @@ exports.forgotPassword = async (req, res) => {
 
 exports.resetPassword = async (req, res) => {
     const { email, token, newPassword } = req.body;
+    const emailNormalized = normalizeEmail(email);
 
-    if (!email || !token || !newPassword) {
+    if (!emailNormalized || !token || !newPassword) {
         return res.status(400).json({ message: "Email, token and newPassword are required" });
     }
 
-    const resetRequest = await PasswordResetToken.findOne({ email });
+    const resetRequest = await PasswordResetToken.findOne({ email: emailNormalized });
 
     if (!resetRequest) {
         return res.status(400).json({ message: "Reset token not found or expired" });
@@ -174,7 +179,7 @@ exports.resetPassword = async (req, res) => {
         return res.status(400).json({ message: "Invalid reset token" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await User.findOne({ email: emailNormalized });
 
     if (!user) {
         await PasswordResetToken.deleteOne({ _id: resetRequest._id });
@@ -195,7 +200,7 @@ const verifyOtp = async(req, res)=>{
         return res.status(400).json({message:"Email and OTP are required"});
     }
 
-    const emailTrimmed = String(email).trim().toLowerCase();
+    const emailTrimmed = normalizeEmail(email);
     const otpTrimmed = String(otp).trim();
 
     try {
@@ -222,8 +227,8 @@ const verifyOtp = async(req, res)=>{
         const existingUser = await User.findOne({email: emailTrimmed});
         if(existingUser){
             await PendingRegistration.deleteOne({_id: pendingRegistration._id});
-            console.warn(`verifyOtp: email already exists when verifying otp email=${emailTrimmed}`);
-            return res.status(409).json({message:"Email already exists"});
+            console.warn(`verifyOtp: auth user already exists for email=${emailTrimmed}, treating verify as success`);
+            return res.status(200).json({message:"OTP verified successfully"});
         }
 
         try {
