@@ -66,6 +66,21 @@ router.post('/reset-password', resetPassword);
 router.get('/verify', auth, verifyToken);
 router.get('/profile', auth, getProfile);
 
+// Debug: check pending registration status by email (safe for debugging only)
+router.get('/pending', async (req, res) => {
+  const email = String(req.query.email || '').trim().toLowerCase();
+  if (!email) return res.status(400).json({ message: 'email query required' });
+  try {
+    const PendingRegistration = require('../model/pendingRegistration');
+    const doc = await PendingRegistration.findOne({ email }).lean();
+    if (!doc) return res.status(404).json({ message: 'not found' });
+    return res.json({ pending: doc });
+  } catch (err) {
+    console.error('GET /auth/pending error', err && (err.stack || err.message || err));
+    return res.status(500).json({ message: 'server error' });
+  }
+});
+
 // Google OAuth routes
 router.get(
   '/google',

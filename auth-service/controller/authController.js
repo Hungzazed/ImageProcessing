@@ -195,33 +195,40 @@ const verifyOtp = async(req, res)=>{
         return res.status(400).json({message:"Email and OTP are required"});
     }
 
+    const emailTrimmed = String(email).trim().toLowerCase();
+    const otpTrimmed = String(otp).trim();
+
     try {
-        const pendingRegistration = await PendingRegistration.findOne({email});
+        const pendingRegistration = await PendingRegistration.findOne({email: emailTrimmed});
 
         if(!pendingRegistration){
+            console.warn(`verifyOtp: pending not found for email=${emailTrimmed}`);
             return res.status(400).json({message:"OTP request not found or expired"});
         }
 
-        if(pendingRegistration.otpExpiresAt.getTime() < Date.now()){
+        if (!pendingRegistration.otpExpiresAt || pendingRegistration.otpExpiresAt.getTime() < Date.now()){
             await PendingRegistration.deleteOne({_id: pendingRegistration._id});
+            console.warn(`verifyOtp: otp expired for email=${emailTrimmed}`);
             return res.status(400).json({message:"OTP has expired. Please register again."});
         }
 
-        const validOtp = await bcrypt.compare(String(otp), pendingRegistration.otpHash);
+        const validOtp = await bcrypt.compare(otpTrimmed, pendingRegistration.otpHash);
 
         if(!validOtp){
+            console.warn(`verifyOtp: invalid otp for email=${emailTrimmed}`);
             return res.status(400).json({message:"Invalid OTP"});
         }
 
-        const existingUser = await User.findOne({email});
+        const existingUser = await User.findOne({email: emailTrimmed});
         if(existingUser){
             await PendingRegistration.deleteOne({_id: pendingRegistration._id});
+            console.warn(`verifyOtp: email already exists when verifying otp email=${emailTrimmed}`);
             return res.status(400).json({message:"Email already exists"});
         }
 
         const user = await User.create({
             name: pendingRegistration.name,
-            email: pendingRegistration.email,
+            email: emailTrimmed,
             password: pendingRegistration.passwordHash,
             isVerified: true
         });
@@ -230,6 +237,7 @@ const verifyOtp = async(req, res)=>{
 
         res.status(201).json({message:"OTP verified successfully", user});
     } catch (error) {
+        console.error('verifyOtp: unexpected error', error && (error.stack || error.message || error));
         res.status(500).json({message:"Server error"})
     }
 }
