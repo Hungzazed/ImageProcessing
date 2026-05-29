@@ -21,7 +21,7 @@ const resolveBackendBaseUrl = (req) => {
     return `${protocol}://${host}`;
   }
 
-  return process.env.BACKEND_URL || 'http://localhost:3000';
+  return process.env.BACKEND_URL || 'http://localhost:3001';
 };
 
 const resolveFrontendUrl = (req) => {
