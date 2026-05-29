@@ -8,7 +8,7 @@ const sendEmail = require("../utils/sendEmail");
 const { enqueueOtpEmail } = require("../utils/otpEmailQueue");
 const { getAccessTokenFromRequest, getRefreshTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
 
-const OTP_EXPIRES_IN_MINUTES = 10;
+const OTP_EXPIRES_IN_MINUTES = 1;
 const RESET_TOKEN_EXPIRES_IN_MINUTES = 30;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -25,7 +25,7 @@ exports.register = async(req , res)=>{
         }
 
         const existingUser = await User.findOne({email});
-        if(existingUser) return res.status(400).json({message:"Email already exists"});
+        if(existingUser) return res.status(409).json({message:"Email already exists"});
 
         const passwordHash = await bcrypt.hash(password,10);
         const otp = generateOtp();
@@ -223,19 +223,30 @@ const verifyOtp = async(req, res)=>{
         if(existingUser){
             await PendingRegistration.deleteOne({_id: pendingRegistration._id});
             console.warn(`verifyOtp: email already exists when verifying otp email=${emailTrimmed}`);
-            return res.status(400).json({message:"Email already exists"});
+            return res.status(409).json({message:"Email already exists"});
         }
 
-        const user = await User.create({
-            name: pendingRegistration.name,
-            email: emailTrimmed,
-            password: pendingRegistration.passwordHash,
-            isVerified: true
-        });
+        try {
+            const user = await User.create({
+                name: pendingRegistration.name,
+                email: emailTrimmed,
+                password: pendingRegistration.passwordHash,
+                isVerified: true
+            });
 
-        await PendingRegistration.deleteOne({_id: pendingRegistration._id});
+            await PendingRegistration.deleteOne({_id: pendingRegistration._id});
 
-        res.status(201).json({message:"OTP verified successfully", user});
+            return res.status(201).json({message:"OTP verified successfully", user});
+        } catch (err) {
+            // handle duplicate key race (email unique index) or other create-time errors
+            console.error('verifyOtp: user creation failed', err && (err.stack || err.message || err));
+            // cleanup pending registration to avoid stale pending entries
+            try { await PendingRegistration.deleteOne({_id: pendingRegistration._id}).catch(()=>{}); } catch(_){}
+            if (err && err.code === 11000) {
+                return res.status(409).json({ message: 'Email already exists' });
+            }
+            return res.status(500).json({ message: 'Server error' });
+        }
     } catch (error) {
         console.error('verifyOtp: unexpected error', error && (error.stack || error.message || error));
         res.status(500).json({message:"Server error"})
