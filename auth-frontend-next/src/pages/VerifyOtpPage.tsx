@@ -28,17 +28,6 @@ export function VerifyOtpPage() {
     }
   }, [form.email]);
 
-  const readPendingRegistration = () => {
-    const rawData = sessionStorage.getItem('pendingRegistrationData');
-    if (!rawData) return null;
-
-    try {
-      return JSON.parse(rawData) as { name?: string; email?: string; phoneNumber?: string };
-    } catch {
-      return null;
-    }
-  };
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);
@@ -47,36 +36,9 @@ export function VerifyOtpPage() {
     try {
       await authApi.verifyOtp(form);
 
-      const pendingRegistration = readPendingRegistration();
-      const name = pendingRegistration?.name?.trim() || '';
-      const phoneNumber = pendingRegistration?.phoneNumber?.trim() || '';
-
-      if (!name || !phoneNumber) {
-        throw new Error('Không tìm thấy thông tin đăng ký tạm để tạo hồ sơ người dùng.');
-      }
-
-      try {
-        await authApi.createUser({
-          ...authApi.prepareUserPayload({
-            name,
-            email: form.email,
-            password: '',
-            phoneNumber,
-          }),
-          phoneNumber,
-        });
-      } catch (createUserError: any) {
-        const message = createUserError?.message || '';
-        const isDuplicate = /exists|tồn tại|already/i.test(message);
-
-        if (!isDuplicate) {
-          throw createUserError;
-        }
-      }
-
       sessionStorage.removeItem('pendingRegistrationEmail');
       sessionStorage.removeItem('pendingRegistrationData');
-      setSuccess('Xác thực và tạo hồ sơ người dùng thành công. Đang chuyển về màn hình đăng nhập...');
+      setSuccess('Xác thực thành công. Đang chuyển về màn hình đăng nhập...');
       setTimeout(() => router.push(`/login?verified=1&email=${encodeURIComponent(form.email)}`), 900);
     } catch (submitError: any) {
       setError(submitError?.message || 'Verify OTP failed');
@@ -89,7 +51,7 @@ export function VerifyOtpPage() {
     <AuthCardLayout
       eyebrow="Verify email"
       title="Verify OTP"
-      subtitle="Enter the OTP sent by auth-service to complete account creation."
+      subtitle="Enter the OTP sent by auth-service to complete verification."
       footer={
         <div className="flex items-center justify-between text-sm text-[#ccc3d8]">
           <Link href="/register">Back to sign up</Link>
