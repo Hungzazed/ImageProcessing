@@ -18,50 +18,57 @@ const hashToken = (token) => createHash('sha256').update(token).digest('hex');
 exports.register = async(req , res)=>{
     const {name , email , password} = req.body;
 
-    if(!name || !email || !password){
-        return res.status(400).json({message:"Name, email and password are required"});
-    }
-
-    const existingUser = await User.findOne({email});
-    if(existingUser) return res.status(400).json({message:"Email already exists"});
-
-    const passwordHash = await bcrypt.hash(password,10);
-    const otp = generateOtp();
-    const otpHash = await bcrypt.hash(otp, 10);
-    const otpExpiresAt = new Date(Date.now() + OTP_EXPIRES_IN_MINUTES * 60 * 1000);
-
-    await PendingRegistration.deleteOne({email});
-    await PendingRegistration.create({
-        name,
-        email,
-        passwordHash,
-        otpHash,
-        otpExpiresAt
-    });
-
-        try {
-                await sendEmail(
-                        email,
-                        'Xác thực đăng ký bằng OTP',
-                        `
-                            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-                                <h2>Xác thực đăng ký</h2>
-                                <p>Mã OTP của bạn là:</p>
-                                <div style="font-size: 28px; font-weight: 700; letter-spacing: 6px; padding: 12px 16px; background: #f3f4f6; display: inline-block; border-radius: 8px;">
-                                    ${otp}
-                                </div>
-                                <p style="margin-top: 16px;">Mã sẽ hết hạn sau ${OTP_EXPIRES_IN_MINUTES} phút.</p>
-                            </div>
-                        `
-                );
-        } catch (error) {
-                await PendingRegistration.deleteOne({email});
-                return res.status(500).json({message:"Failed to send OTP email"});
+    try {
+        if(!name || !email || !password){
+            return res.status(400).json({message:"Name, email and password are required"});
         }
 
-    res.status(201).json({
-        message:"OTP has been sent to your email. Please verify to complete registration."
-    });
+        const existingUser = await User.findOne({email});
+        if(existingUser) return res.status(400).json({message:"Email already exists"});
+
+        const passwordHash = await bcrypt.hash(password,10);
+        const otp = generateOtp();
+        const otpHash = await bcrypt.hash(otp, 10);
+        const otpExpiresAt = new Date(Date.now() + OTP_EXPIRES_IN_MINUTES * 60 * 1000);
+
+        await PendingRegistration.deleteOne({email});
+        await PendingRegistration.create({
+            name,
+            email,
+            passwordHash,
+            otpHash,
+            otpExpiresAt
+        });
+
+        try {
+            await sendEmail(
+                email,
+                'Xác thực đăng ký bằng OTP',
+                `
+                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+                        <h2>Xác thực đăng ký</h2>
+                        <p>Mã OTP của bạn là:</p>
+                        <div style="font-size: 28px; font-weight: 700; letter-spacing: 6px; padding: 12px 16px; background: #f3f4f6; display: inline-block; border-radius: 8px;">
+                            ${otp}
+                        </div>
+                        <p style="margin-top: 16px;">Mã sẽ hết hạn sau ${OTP_EXPIRES_IN_MINUTES} phút.</p>
+                    </div>
+                `
+            );
+        } catch (error) {
+            await PendingRegistration.deleteOne({email});
+            console.error('register: sendEmail failed', error && (error.stack || error.message || error));
+            return res.status(500).json({message:"Failed to send OTP email"});
+        }
+
+        return res.status(201).json({
+            message:"OTP has been sent to your email. Please verify to complete registration."
+        });
+    } catch (error) {
+        console.error('register: unexpected error', error && (error.stack || error.message || error));
+        try { await PendingRegistration.deleteOne({ email }).catch(()=>{}); } catch(_){}
+        return res.status(500).json({ message: 'Server error', error: error && (error.message || String(error)) });
+    }
 }
 exports.login = async (req, res)=>{
     const {email , password} = req.body;
