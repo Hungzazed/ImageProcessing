@@ -5,6 +5,7 @@ const PasswordResetToken = require("../model/passwordResetToken");
 const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const sendEmail = require("../utils/sendEmail");
+const { enqueueOtpEmail } = require("../utils/otpEmailQueue");
 const { getAccessTokenFromRequest, getRefreshTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
 
 const OTP_EXPIRES_IN_MINUTES = 10;
@@ -32,37 +33,27 @@ exports.register = async(req , res)=>{
         const otpExpiresAt = new Date(Date.now() + OTP_EXPIRES_IN_MINUTES * 60 * 1000);
 
         await PendingRegistration.deleteOne({email});
-        await PendingRegistration.create({
+        const pendingRegistration = await PendingRegistration.create({
             name,
             email,
             passwordHash,
             otpHash,
-            otpExpiresAt
+            otpExpiresAt,
+            emailStatus: 'pending',
+            emailAttemptCount: 0,
+            lastEmailError: null,
+            otpSentAt: null,
         });
 
-        try {
-            await sendEmail(
-                email,
-                'Xác thực đăng ký bằng OTP',
-                `
-                    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-                        <h2>Xác thực đăng ký</h2>
-                        <p>Mã OTP của bạn là:</p>
-                        <div style="font-size: 28px; font-weight: 700; letter-spacing: 6px; padding: 12px 16px; background: #f3f4f6; display: inline-block; border-radius: 8px;">
-                            ${otp}
-                        </div>
-                        <p style="margin-top: 16px;">Mã sẽ hết hạn sau ${OTP_EXPIRES_IN_MINUTES} phút.</p>
-                    </div>
-                `
-            );
-        } catch (error) {
-            await PendingRegistration.deleteOne({email});
-            console.error('register: sendEmail failed', error && (error.stack || error.message || error));
-            return res.status(500).json({message:"Failed to send OTP email"});
-        }
+        await enqueueOtpEmail({
+            pendingRegistrationId: String(pendingRegistration._id),
+            email,
+            otp,
+            otpExpiresInMinutes: OTP_EXPIRES_IN_MINUTES,
+        });
 
         return res.status(201).json({
-            message:"OTP has been sent to your email. Please verify to complete registration."
+            message:"OTP is being sent to your email. Please verify to complete registration."
         });
     } catch (error) {
         console.error('register: unexpected error', error && (error.stack || error.message || error));

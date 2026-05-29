@@ -9,6 +9,7 @@ const swaggerDocument = require('./swagger.json');
 
 const authRouter = require('./router/authRoutes');
 const userRouter = require('./router/userRoutes');
+const { markStalePendingEmails } = require('./utils/otpEmailQueue');
 
 const app = express();
 const cookieParser = require('cookie-parser');
@@ -50,9 +51,19 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-connectDB();
-
 app.use('/auth', authRouter);
 app.use('/users', userRouter);
 
-app.listen(3001, () => console.log("Server running on port 3001"))
+const startServer = async () => {
+    await connectDB();
+
+    try {
+        await markStalePendingEmails();
+    } catch (error) {
+        console.error('Failed to reconcile stale pending OTP emails', error && (error.message || error));
+    }
+
+    app.listen(3001, () => console.log("Server running on port 3001"));
+};
+
+startServer();
