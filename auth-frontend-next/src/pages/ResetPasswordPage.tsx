@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { authApi } from '@/api/authApi';
 import AuthCardLayout from '@/layouts/AuthCardLayout';
@@ -9,13 +8,13 @@ import InputField from '@/components/common/InputField';
 import StatusBanner from '@/components/common/StatusBanner';
 
 export function ResetPasswordPage({ searchParams }: { searchParams?: { email?: string; token?: string } }) {
-  const router = useRouter();
   const email = searchParams?.email || '';
   const token = searchParams?.token || '';
   const [form, setForm] = useState({ email, token, newPassword: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const resetCompleted = Boolean(success);
 
   useEffect(() => {
     setForm((current) => ({ ...current, email, token }));
@@ -40,8 +39,13 @@ export function ResetPasswordPage({ searchParams }: { searchParams?: { email?: s
 
     try {
       await authApi.resetPassword({ email: form.email, token: form.token, newPassword: form.newPassword });
-      setSuccess('Password reset successful. Returning to sign in...');
-      setTimeout(() => router.push('/login?reset=1'), 900);
+      setSuccess('Congratulations, your password has been changed successfully.');
+      setForm((current) => ({ ...current, newPassword: '', confirmPassword: '' }));
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('password-reset-completed-at', String(Date.now()));
+        window.dispatchEvent(new Event('password-reset-completed'));
+      }
     } catch (submitError: any) {
       setError(submitError.message);
     } finally {
@@ -54,24 +58,26 @@ export function ResetPasswordPage({ searchParams }: { searchParams?: { email?: s
       eyebrow="Reset password"
       title="Reset password"
       subtitle="Enter a new password to complete the recovery flow."
-      footer={
+      footer={!resetCompleted ? (
         <div className="flex items-center justify-between text-sm text-[#ccc3d8]">
           <Link href="/login">Back to sign in</Link>
           <Link href="/forgot-password">Resend reset email</Link>
         </div>
-      }
+      ) : undefined}
     >
       <div className="space-y-4">
         <StatusBanner tone="success" message={success} />
         <StatusBanner tone="error" message={error} />
       </div>
 
-      <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
-        <InputField label="Email" type="email" value={form.email} readOnly />
-        <InputField label="New password" type="password" placeholder="Enter a new password" value={form.newPassword} onChange={(event) => setForm((current) => ({ ...current, newPassword: event.target.value }))} />
-        <InputField label="Confirm password" type="password" placeholder="Re-enter the new password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} />
-        <button className="w-full rounded-xl bg-[#7c3aed] py-3 text-sm font-bold text-white" type="submit" disabled={loading}>{loading ? 'Updating...' : 'Reset password'}</button>
-      </form>
+      {!resetCompleted && (
+        <form className="mt-4 space-y-4" onSubmit={handleSubmit}>
+          <InputField label="Email" type="email" value={form.email} readOnly />
+          <InputField label="New password" type="password" placeholder="Enter a new password" value={form.newPassword} onChange={(event) => setForm((current) => ({ ...current, newPassword: event.target.value }))} />
+          <InputField label="Confirm password" type="password" placeholder="Re-enter the new password" value={form.confirmPassword} onChange={(event) => setForm((current) => ({ ...current, confirmPassword: event.target.value }))} />
+          <button className="w-full rounded-xl bg-[#7c3aed] py-3 text-sm font-bold text-white" type="submit" disabled={loading}>{loading ? 'Updating...' : 'Reset password'}</button>
+        </form>
+      )}
     </AuthCardLayout>
   );
 }
