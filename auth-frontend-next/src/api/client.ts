@@ -2,7 +2,21 @@ import axios from 'axios';
 
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
-const configuredAuthBaseUrl = stripTrailingSlash(
+const normalizeAuthBaseUrl = (value: string) => {
+  const base = stripTrailingSlash(value);
+
+  if (!base) {
+    return '';
+  }
+
+  if (base.includes('execute-api') && !base.endsWith('/prod')) {
+    return `${base}/prod`;
+  }
+
+  return base;
+};
+
+const configuredAuthBaseUrl = normalizeAuthBaseUrl(
   process.env.NEXT_PUBLIC_AUTH_API_URL || ''
 );
 

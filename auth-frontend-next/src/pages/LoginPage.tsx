@@ -14,7 +14,6 @@ import { authApi } from '@/api/authApi';
 import { authStorage } from '@/store/authStorage';
 import { useDispatch } from 'react-redux';
 import { setSession } from '@/store/authSlice';
-import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 
 const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
 const DASHBOARD_URL = `${SHELL_BASE_URL}/dashboard`;
@@ -84,25 +83,7 @@ export function LoginPage() {
     setError('');
 
     try {
-      if (!isSupabaseConfigured) {
-        throw new Error('Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.');
-      }
-
-      const redirectTo = `${window.location.origin}/auth/callback`;
-      const { data, error: signInError } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo,
-        },
-      });
-
-      if (signInError) {
-        throw signInError;
-      }
-
-      if (data?.url) {
-        window.location.assign(data.url);
-      }
+      window.location.assign(authApi.googleAuthUrl);
     } catch (googleError: any) {
       setError(googleError.message || 'Unable to start Google sign-in');
       setLoading(false);

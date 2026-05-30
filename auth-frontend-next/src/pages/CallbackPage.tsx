@@ -104,48 +104,6 @@ export function CallbackPage() {
           throw new Error(oauthErrorDescription || `Google OAuth failed: ${oauthError}`);
         }
 
-        const { data: existingSessionData } = await supabase.auth.getSession();
-        if (existingSessionData?.session) {
-          const existingSession = existingSessionData.session;
-          const existingUser = mapSupabaseUserToAuthUser(existingSession.user);
-          authStorage.saveSession(existingSession.access_token, existingSession.refresh_token ?? null, existingUser, 'supabase');
-          dispatch(setSession({ accessToken: existingSession.access_token, user: existingUser }));
-          notifyShellLogin(existingSession.access_token, existingSession.refresh_token ?? null, existingUser);
-
-          if (alive) {
-            setStatus('Google sign-in successful. Redirecting to the dashboard...');
-          }
-
-          return;
-        }
-
-        const code = searchParams?.get('code');
-
-        if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-          if (error) {
-            throw error;
-          }
-
-          const session = data.session;
-
-          if (!session) {
-            throw new Error('No Supabase session was returned.');
-          }
-
-          const user = mapSupabaseUserToAuthUser(session.user);
-          authStorage.saveSession(session.access_token, session.refresh_token ?? null, user, 'supabase');
-          dispatch(setSession({ accessToken: session.access_token, user }));
-          notifyShellLogin(session.access_token, session.refresh_token ?? null, user);
-
-          if (alive) {
-            setStatus('Google sign-in successful. Redirecting to the dashboard...');
-          }
-
-          return;
-        }
-
         const accessTokenFromQuery =
           searchParams?.get('accessToken') ||
           hashParams.get('access_token') ||
@@ -160,7 +118,50 @@ export function CallbackPage() {
           : null;
 
         if (!accessTokenFromQuery || !refreshTokenFromQuery) {
-          throw new Error('Missing Google callback tokens. Verify Supabase redirect URLs and OAuth client configuration.');
+          const { data: existingSessionData } = await supabase.auth.getSession();
+
+          if (existingSessionData?.session) {
+            const existingSession = existingSessionData.session;
+            const existingUser = mapSupabaseUserToAuthUser(existingSession.user);
+            authStorage.saveSession(existingSession.access_token, existingSession.refresh_token ?? null, existingUser, 'supabase');
+            dispatch(setSession({ accessToken: existingSession.access_token, user: existingUser }));
+            notifyShellLogin(existingSession.access_token, existingSession.refresh_token ?? null, existingUser);
+
+            if (alive) {
+              setStatus('Google sign-in successful. Redirecting to the dashboard...');
+            }
+
+            return;
+          }
+
+          const code = searchParams?.get('code');
+
+          if (code) {
+            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+            if (error) {
+              throw error;
+            }
+
+            const session = data.session;
+
+            if (!session) {
+              throw new Error('No Supabase session was returned.');
+            }
+
+            const user = mapSupabaseUserToAuthUser(session.user);
+            authStorage.saveSession(session.access_token, session.refresh_token ?? null, user, 'supabase');
+            dispatch(setSession({ accessToken: session.access_token, user }));
+            notifyShellLogin(session.access_token, session.refresh_token ?? null, user);
+
+            if (alive) {
+              setStatus('Google sign-in successful. Redirecting to the dashboard...');
+            }
+
+            return;
+          }
+
+          throw new Error('Missing Google callback tokens. Verify redirect URLs and OAuth client configuration.');
         }
 
         const session = await authApi.verifyToken(accessTokenFromQuery);
