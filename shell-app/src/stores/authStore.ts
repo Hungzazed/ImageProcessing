@@ -69,13 +69,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     deleteCookie(COOKIE_REFRESH_TOKEN, { path: '/' });
     deleteCookie(COOKIE_USER, { path: '/' });
 
-    // 3. Clear localStorage
+    // 3. Clear localStorage — all keys used across all microfrontends
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('auth_access_token');
-      localStorage.removeItem('authToken'); // Clear legacy key
-      localStorage.removeItem('auth_refresh_token');
-      localStorage.removeItem('auth_user');
-      localStorage.removeItem('authUser'); // Clear dashboard-ui key
+      localStorage.removeItem('auth_access_token');   // shell-app
+      localStorage.removeItem('authToken');            // auth-frontend-next / legacy
+      localStorage.removeItem('auth_refresh_token');  // shell-app
+      localStorage.removeItem('authRefreshToken');     // auth-frontend-next
+      localStorage.removeItem('auth_user');            // shell-app
+      localStorage.removeItem('authUser');             // auth-frontend-next / dashboard-ui
+      localStorage.removeItem('authProvider');         // auth-frontend-next
     }
   },
 

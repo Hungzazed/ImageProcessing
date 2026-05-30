@@ -121,6 +121,26 @@ export default function DashboardPage() {
         saveSharedSession(data.accessToken, nextUser);
         setToken(data.accessToken);
         setUser(nextUser);
+        return;
+      }
+
+      if (data.type === 'auth-logout') {
+        // Clear all keys used across all microfrontends
+        window.localStorage.removeItem('authToken');
+        window.localStorage.removeItem('auth_access_token');
+        window.localStorage.removeItem('authRefreshToken');    // auth-frontend-next
+        window.localStorage.removeItem('auth_refresh_token');  // shell-app
+        window.localStorage.removeItem('authUser');
+        window.localStorage.removeItem('auth_user');
+        window.localStorage.removeItem('authProvider');
+        // Clear all shared cookies
+        document.cookie = 'authToken=; path=/; max-age=0; samesite=strict';
+        document.cookie = 'auth_access_token=; path=/; max-age=0; samesite=strict';
+        document.cookie = 'auth_refresh_token=; path=/; max-age=0; samesite=strict';
+        document.cookie = 'authUser=; path=/; max-age=0; samesite=strict';
+        document.cookie = 'auth_user=; path=/; max-age=0; samesite=strict';
+        setToken(null);
+        setUser(null);
       }
     };
 

@@ -20,6 +20,8 @@ const AUTH_TOKEN_KEY = 'authToken';
 const AUTH_REFRESH_TOKEN_KEY = 'authRefreshToken';
 const AUTH_USER_KEY = 'authUser';
 const AUTH_PROVIDER_KEY = 'authProvider';
+const LEGACY_AUTH_USER_KEY = 'authUser';
+const LEGACY_AUTH_REFRESH_TOKEN_KEY = 'auth_refresh_token';
 
 const SHARED_ACCESS_TOKEN_COOKIE = 'auth_access_token';
 const SHARED_REFRESH_TOKEN_COOKIE = 'auth_refresh_token';
@@ -33,6 +35,15 @@ function setCookie(name: string, value: string, maxAgeSeconds = 60 * 60 * 24 * 3
 function clearCookie(name: string) {
   if (typeof document === 'undefined') return;
   document.cookie = `${name}=; path=/; max-age=0; samesite=strict`;
+}
+
+function clearSharedCookies() {
+  clearCookie(SHARED_ACCESS_TOKEN_COOKIE);
+  clearCookie(SHARED_REFRESH_TOKEN_COOKIE);
+  clearCookie(SHARED_USER_COOKIE);
+  clearCookie('authToken');
+  clearCookie(LEGACY_AUTH_REFRESH_TOKEN_KEY);
+  clearCookie(LEGACY_AUTH_USER_KEY);
 }
 
 export const authStorage = {
@@ -83,13 +94,20 @@ export const authStorage = {
 
   clearSession() {
     if (typeof window === 'undefined') return;
-    window.localStorage.removeItem(AUTH_TOKEN_KEY);
-    window.localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
-    window.localStorage.removeItem(AUTH_USER_KEY);
-    window.localStorage.removeItem(AUTH_PROVIDER_KEY);
+    // Keys used by auth-frontend-next
+    window.localStorage.removeItem(AUTH_TOKEN_KEY);          // 'authToken'
+    window.localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);  // 'authRefreshToken'
+    window.localStorage.removeItem(AUTH_USER_KEY);           // 'authUser'
+    window.localStorage.removeItem(AUTH_PROVIDER_KEY);       // 'authProvider'
+    // Keys used by shell-app
+    window.localStorage.removeItem('auth_access_token');
+    window.localStorage.removeItem('auth_refresh_token');
+    window.localStorage.removeItem('auth_user');
+    // Legacy / cross-app aliases
+    window.localStorage.removeItem('authToken');
+    window.localStorage.removeItem(LEGACY_AUTH_REFRESH_TOKEN_KEY); // 'auth_refresh_token'
+    window.localStorage.removeItem(LEGACY_AUTH_USER_KEY);          // 'authUser'
 
-    clearCookie(SHARED_ACCESS_TOKEN_COOKIE);
-    clearCookie(SHARED_REFRESH_TOKEN_COOKIE);
-    clearCookie(SHARED_USER_COOKIE);
+    clearSharedCookies();
   },
 };
