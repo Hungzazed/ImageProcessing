@@ -35,8 +35,8 @@ function AuthPageContent({ page = 'login' }: AuthAppProps) {
       return (
         <ResetPasswordPage
           searchParams={{
-            email: searchParams.get('email') ?? undefined,
-            token: searchParams.get('token') ?? undefined,
+            email: searchParams?.get('email') ?? undefined,
+            token: searchParams?.get('token') ?? undefined,
           }}
         />
       );
