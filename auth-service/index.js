@@ -10,6 +10,7 @@ const swaggerDocument = require('./swagger.json');
 const authRouter = require('./router/authRoutes');
 const userRouter = require('./router/userRoutes');
 const { markStalePendingEmails } = require('./utils/otpEmailQueue');
+const { markStalePasswordResetEmails } = require('./utils/passwordResetEmailQueue');
 
 const app = express();
 const cookieParser = require('cookie-parser');
@@ -59,8 +60,9 @@ const startServer = async () => {
 
     try {
         await markStalePendingEmails();
+        await markStalePasswordResetEmails();
     } catch (error) {
-        console.error('Failed to reconcile stale pending OTP emails', error && (error.message || error));
+        console.error('Failed to reconcile stale pending emails', error && (error.message || error));
     }
 
     app.listen(3001, () => console.log("Server running on port 3001"));

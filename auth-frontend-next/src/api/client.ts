@@ -3,32 +3,14 @@ import axios from 'axios';
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
 const normalizeAuthBaseUrl = (value: string) => {
-  const base = stripTrailingSlash(value);
-
-  if (!base) {
-    return '';
-  }
-
-  if (base.includes('execute-api') && !base.endsWith('/prod')) {
-    return `${base}/prod`;
-  }
-
-  return base;
+  return stripTrailingSlash(value || '');
 };
 
 const configuredAuthBaseUrl = normalizeAuthBaseUrl(
   process.env.NEXT_PUBLIC_AUTH_API_URL || ''
 );
 
-const isLocalDevHost = typeof window !== 'undefined' && (
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1'
-);
-
-export const API_BASE_URL =
-  isLocalDevHost && (!configuredAuthBaseUrl || configuredAuthBaseUrl.includes('execute-api'))
-    ? 'http://localhost:3001'
-    : configuredAuthBaseUrl;
+export const API_BASE_URL = configuredAuthBaseUrl;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

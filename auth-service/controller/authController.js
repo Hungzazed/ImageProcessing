@@ -6,6 +6,7 @@ const bcrypt = require("bcrypt");
 const jwt = require('jsonwebtoken');
 const sendEmail = require("../utils/sendEmail");
 const { enqueueOtpEmail } = require("../utils/otpEmailQueue");
+const { enqueuePasswordResetEmail } = require("../utils/passwordResetEmailQueue");
 const { getAccessTokenFromRequest, getRefreshTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
 
 const OTP_EXPIRES_IN_MINUTES = 1;
@@ -155,6 +156,55 @@ exports.forgotPassword = async (req, res) => {
     return res.status(200).json({
         message: "If the account exists, a password reset email has been sent."
     });
+};
+
+exports.forgotPassword = async (req, res) => {
+    const { email } = req.body;
+    const emailNormalized = normalizeEmail(email);
+
+    if (!emailNormalized) {
+        return res.status(400).json({ message: "Email is required" });
+    }
+
+    try {
+        const user = await User.findOne({ email: emailNormalized });
+
+        if (!user) {
+            return res.status(200).json({
+                message: "If the account exists, a password reset email has been sent."
+            });
+        }
+
+        const token = generateResetToken();
+        const tokenHash = hashToken(token);
+        const expiresAt = new Date(Date.now() + RESET_TOKEN_EXPIRES_IN_MINUTES * 60 * 1000);
+        const resetUrl = `${FRONTEND_URL}/reset-password?email=${encodeURIComponent(emailNormalized)}&token=${token}`;
+
+        await PasswordResetToken.deleteOne({ email: emailNormalized });
+        const resetRequest = await PasswordResetToken.create({
+            email: emailNormalized,
+            tokenHash,
+            expiresAt,
+            emailStatus: 'pending',
+            emailAttemptCount: 0,
+            lastEmailError: null,
+            emailSentAt: null,
+        });
+
+        await enqueuePasswordResetEmail({
+            passwordResetTokenId: String(resetRequest._id),
+            email: emailNormalized,
+            resetUrl,
+            expiresInMinutes: RESET_TOKEN_EXPIRES_IN_MINUTES,
+        });
+
+        return res.status(200).json({
+            message: "If the account exists, a password reset email has been sent."
+        });
+    } catch (error) {
+        console.error('forgotPassword: unexpected error', error && (error.stack || error.message || error));
+        return res.status(500).json({ message: "Server error" });
+    }
 };
 
 exports.resetPassword = async (req, res) => {

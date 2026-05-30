@@ -15,8 +15,7 @@ import { authStorage } from '@/store/authStorage';
 import { useDispatch } from 'react-redux';
 import { setSession } from '@/store/authSlice';
 
-const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
-const DASHBOARD_URL = `${SHELL_BASE_URL}/dashboard`;
+const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
 
 export function LoginPage() {
   const searchParams = useSearchParams();
@@ -25,6 +24,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const dashboardUrl = SHELL_BASE_URL ? `${SHELL_BASE_URL}/dashboard` : '';
 
   const statusMessage = useMemo(() => {
     if (searchParams?.get('verified') === '1') return 'Email đã xác thực. Bạn có thể đăng nhập ngay.';
@@ -45,6 +45,10 @@ export function LoginPage() {
       authStorage.saveSession(result.accessToken, result.refreshToken, sessionUser);
       dispatch(setSession({ accessToken: result.accessToken, user: sessionUser }));
 
+      if (!dashboardUrl) {
+        throw new Error('Missing NEXT_PUBLIC_SHELL_APP_URL');
+      }
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(
           new CustomEvent('auth-login', {
@@ -53,7 +57,7 @@ export function LoginPage() {
         );
         window.dispatchEvent(
           new CustomEvent('navigate', {
-            detail: { path: DASHBOARD_URL },
+            detail: { path: dashboardUrl },
           })
         );
 
@@ -65,10 +69,10 @@ export function LoginPage() {
           }, '*');
           window.parent.postMessage({
             type: 'navigate',
-            path: DASHBOARD_URL,
+            path: dashboardUrl,
           }, '*');
         } else {
-          window.location.assign(DASHBOARD_URL);
+          window.location.assign(dashboardUrl);
         }
       }
     } catch (submitError: any) {
@@ -83,6 +87,17 @@ export function LoginPage() {
     setError('');
 
     try {
+      if (typeof window !== 'undefined' && window.parent && window.parent !== window) {
+        window.parent.postMessage(
+          {
+            type: 'navigate',
+            path: authApi.googleAuthUrl,
+          },
+          '*'
+        );
+        return;
+      }
+
       window.location.assign(authApi.googleAuthUrl);
     } catch (googleError: any) {
       setError(googleError.message || 'Unable to start Google sign-in');

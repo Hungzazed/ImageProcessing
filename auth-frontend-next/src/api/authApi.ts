@@ -8,6 +8,10 @@ const USER_API_BASE_URL = stripTrailingSlash(
   process.env.NEXT_PUBLIC_USER_API_URL || ''
 );
 
+const GOOGLE_AUTH_API_BASE_URL = stripTrailingSlash(
+  process.env.NEXT_PUBLIC_GOOGLE_AUTH_API_URL || ''
+);
+
 const userApiClient = axios.create({
   baseURL: USER_API_BASE_URL,
   headers: {
@@ -155,13 +159,12 @@ export const authApi = {
     return data;
   },
   get googleAuthUrl() {
-    const configuredBase = (API_BASE_URL || '').trim();
+    const configuredBase = (GOOGLE_AUTH_API_BASE_URL || API_BASE_URL || '').trim();
 
-    if (configuredBase) {
-      return `${configuredBase}/auth/google`;
+    if (!configuredBase) {
+      throw new Error('Missing NEXT_PUBLIC_GOOGLE_AUTH_API_URL or NEXT_PUBLIC_AUTH_API_URL');
     }
 
-    // Dev fallback when NEXT_PUBLIC_AUTH_API_URL is not provided.
-    return 'http://localhost:3001/auth/google';
+    return `${configuredBase}/auth/google`;
   },
 };
