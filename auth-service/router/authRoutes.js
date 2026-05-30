@@ -32,6 +32,16 @@ const resolveBackendBaseUrl = (req) => {
   return process.env.BACKEND_URL || 'http://localhost:3001';
 };
 
+const resolveGoogleCallbackUrl = (req) => {
+  const configuredCallbackUrl = (process.env.GOOGLE_CALLBACK_URL || '').trim();
+
+  if (configuredCallbackUrl) {
+    return configuredCallbackUrl;
+  }
+
+  return `${resolveBackendBaseUrl(req)}/auth/google/callback`;
+};
+
 const resolveFrontendUrl = (req) => {
   const requestedOrigin = req.query.origin;
   const stateOrigin = (() => {
@@ -99,7 +109,7 @@ router.get(
       }
 
       const frontendUrl = resolveFrontendUrl(req);
-      const callbackURL = `${resolveBackendBaseUrl(req)}/auth/google/callback`;
+      const callbackURL = resolveGoogleCallbackUrl(req);
       const state = encodeBase64Url(JSON.stringify({ frontendUrl }));
 
       return passport.authenticate('google', {
@@ -118,7 +128,7 @@ router.get(
 router.get(
   '/google/callback',
   (req, res, next) => {
-    const callbackURL = `${resolveBackendBaseUrl(req)}/auth/google/callback`;
+    const callbackURL = resolveGoogleCallbackUrl(req);
 
     passport.authenticate('google', { callbackURL, session: false }, (error, user) => {
       const frontendUrl = resolveFrontendUrl(req);

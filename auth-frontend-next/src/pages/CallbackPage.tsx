@@ -7,50 +7,15 @@ import { authApi } from '@/api/authApi';
 import { authStorage, type AuthUser } from '@/store/authStorage';
 import { setSession } from '@/store/authSlice';
 import AuthCardLayout from '@/layouts/AuthCardLayout';
-import { supabase } from '@/lib/supabase';
 
-const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
-const DASHBOARD_URL = `${SHELL_BASE_URL}/dashboard`;
-
-function decodeBase64Url(value: string) {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padding = normalized.length % 4 === 0 ? '' : '='.repeat(4 - (normalized.length % 4));
-  const decoded = atob(`${normalized}${padding}`);
-
-  // Preserve UTF-8 characters from decoded binary string.
-  return decodeURIComponent(
-    decoded
-      .split('')
-      .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
-      .join('')
-  );
-}
-
-function mapSupabaseUserToAuthUser(supabaseUser: { id: string; email?: string | null; user_metadata?: Record<string, unknown>; created_at?: string; updated_at?: string }): AuthUser {
-  const metadata = supabaseUser.user_metadata || {};
-  const fullName = typeof metadata.full_name === 'string'
-    ? metadata.full_name
-    : typeof metadata.name === 'string'
-      ? metadata.name
-      : '';
-
-  return {
-    id: supabaseUser.id,
-    _id: supabaseUser.id,
-    name: fullName || supabaseUser.email || 'Google user',
-    email: supabaseUser.email || '',
-    isVerified: true,
-    role: 'user',
-    createdAt: supabaseUser.created_at,
-    updatedAt: supabaseUser.updated_at,
-  };
-}
+const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
 
 export function CallbackPage() {
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
   const [status, setStatus] = useState('Completing Google sign-in...');
   const [error, setError] = useState('');
+  const dashboardUrl = SHELL_BASE_URL ? `${SHELL_BASE_URL}/dashboard` : '';
 
   function notifyShellLogin(accessToken: string, refreshToken: string | null, user: AuthUser) {
     if (typeof window === 'undefined') return;
@@ -62,7 +27,7 @@ export function CallbackPage() {
     );
     window.dispatchEvent(
       new CustomEvent('navigate', {
-        detail: { path: DASHBOARD_URL },
+        detail: { path: dashboardUrl || '/' },
       })
     );
 
@@ -79,12 +44,12 @@ export function CallbackPage() {
       window.parent.postMessage(
         {
           type: 'navigate',
-          path: DASHBOARD_URL,
+          path: dashboardUrl || '/',
         },
         '*'
       );
     } else {
-      window.location.assign(DASHBOARD_URL);
+      window.location.assign(dashboardUrl || '/');
     }
   }
 
@@ -113,55 +78,26 @@ export function CallbackPage() {
           hashParams.get('refresh_token') ||
           '';
         const encodedUserFromQuery = searchParams?.get('user') || '';
-        const decodedUserFromQuery = encodedUserFromQuery
-          ? JSON.parse(decodeBase64Url(encodedUserFromQuery))
-          : null;
-
         if (!accessTokenFromQuery || !refreshTokenFromQuery) {
-          const { data: existingSessionData } = await supabase.auth.getSession();
-
-          if (existingSessionData?.session) {
-            const existingSession = existingSessionData.session;
-            const existingUser = mapSupabaseUserToAuthUser(existingSession.user);
-            authStorage.saveSession(existingSession.access_token, existingSession.refresh_token ?? null, existingUser, 'supabase');
-            dispatch(setSession({ accessToken: existingSession.access_token, user: existingUser }));
-            notifyShellLogin(existingSession.access_token, existingSession.refresh_token ?? null, existingUser);
-
-            if (alive) {
-              setStatus('Google sign-in successful. Redirecting to the dashboard...');
-            }
-
-            return;
-          }
-
-          const code = searchParams?.get('code');
-
-          if (code) {
-            const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-
-            if (error) {
-              throw error;
-            }
-
-            const session = data.session;
-
-            if (!session) {
-              throw new Error('No Supabase session was returned.');
-            }
-
-            const user = mapSupabaseUserToAuthUser(session.user);
-            authStorage.saveSession(session.access_token, session.refresh_token ?? null, user, 'supabase');
-            dispatch(setSession({ accessToken: session.access_token, user }));
-            notifyShellLogin(session.access_token, session.refresh_token ?? null, user);
-
-            if (alive) {
-              setStatus('Google sign-in successful. Redirecting to the dashboard...');
-            }
-
-            return;
-          }
-
           throw new Error('Missing Google callback tokens. Verify redirect URLs and OAuth client configuration.');
+        }
+
+        let decodedUserFromQuery: AuthUser | null = null;
+        if (encodedUserFromQuery) {
+          try {
+            decodedUserFromQuery = JSON.parse(
+              decodeURIComponent(
+                atob(
+                  `${encodedUserFromQuery.replace(/-/g, '+').replace(/_/g, '/')}${'='.repeat((4 - (encodedUserFromQuery.length % 4)) % 4)}`
+                )
+                  .split('')
+                  .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
+                  .join('')
+              )
+            ) as AuthUser;
+          } catch {
+            decodedUserFromQuery = null;
+          }
         }
 
         const session = await authApi.verifyToken(accessTokenFromQuery);
@@ -176,6 +112,10 @@ export function CallbackPage() {
         authStorage.saveSession(resolvedAccessToken, refreshTokenFromQuery, user, 'backend');
         dispatch(setSession({ accessToken: resolvedAccessToken, user }));
         notifyShellLogin(resolvedAccessToken, refreshTokenFromQuery, user);
+
+        if (!dashboardUrl) {
+          throw new Error('Missing NEXT_PUBLIC_SHELL_APP_URL');
+        }
 
         if (alive) {
           setStatus('Google sign-in successful. Redirecting to the dashboard...');

@@ -6,8 +6,8 @@ type Props = {
 };
 
 export default function AuthNav({ active = 'login' }: Props) {
-  const shellBaseUrl = (process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
-  const dashboardUrl = `${shellBaseUrl}/dashboard`;
+  const shellBaseUrl = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
+  const dashboardUrl = shellBaseUrl ? `${shellBaseUrl}/dashboard` : '/dashboard';
 
   const linkClass = (name: string) =>
     `text-sm font-semibold transition-colors ${active === name ? 'text-[#d2bbff]' : 'text-[#ccc3d8] hover:text-[#d2bbff]'} `;

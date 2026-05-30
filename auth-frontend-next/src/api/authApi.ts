@@ -157,11 +157,10 @@ export const authApi = {
   get googleAuthUrl() {
     const configuredBase = (API_BASE_URL || '').trim();
 
-    if (configuredBase) {
-      return `${configuredBase}/auth/google`;
+    if (!configuredBase) {
+      throw new Error('Missing NEXT_PUBLIC_AUTH_API_URL');
     }
 
-    // Dev fallback when NEXT_PUBLIC_AUTH_API_URL is not provided.
-    return 'http://localhost:3001/auth/google';
+    return `${configuredBase}/auth/google`;
   },
 };

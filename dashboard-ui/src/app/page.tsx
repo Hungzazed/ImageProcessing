@@ -13,7 +13,7 @@ import CompareStep from '@/components/steps/CompareStep';
 import ExportStep from '@/components/steps/ExportStep';
 import AiPipelineStep from '@/components/steps/AiPipelineStep';
 import DashboardNavbar from '@/components/DashboardNavbar';
-import { getSharedSession } from '@/utils/session';
+import { getSharedSession, saveSharedSession } from '@/utils/session';
 
 type UploadedFile = {
   name: string;
@@ -46,6 +46,7 @@ export default function DashboardPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
   const [user, setUser] = useState<any>(null);
   const [token, setToken] = useState<string | null>(null);
+  const shellAppUrl = process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000';
   const pipelineStartedAtRef = useRef<number | null>(null);
 
   // Active file details
@@ -107,6 +108,31 @@ export default function DashboardPage() {
     setToken(session.accessToken);
     setUser(session.user);
   }, []);
+
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== shellAppUrl) return;
+
+      const data = event.data;
+      if (!data || typeof data !== 'object') return;
+
+      if (data.type === 'auth-login' && typeof data.accessToken === 'string') {
+        const nextUser = data.user && typeof data.user === 'object' ? data.user : null;
+        saveSharedSession(data.accessToken, nextUser);
+        setToken(data.accessToken);
+        setUser(nextUser);
+      }
+    };
+
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [shellAppUrl]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.parent) return;
+
+    window.parent.postMessage({ type: 'auth-ready' }, shellAppUrl);
+  }, [shellAppUrl]);
 
   const getPublicS3Url = (s3Key?: string | null) => {
     if (!s3Key) return null;

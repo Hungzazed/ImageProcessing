@@ -55,3 +55,21 @@ export function getSharedSession() {
     user: parseUser(rawUser),
   };
 }
+
+export function saveSharedSession(accessToken: string, user: SharedUser | null) {
+  if (typeof window === 'undefined') return;
+
+  document.cookie = `authToken=${encodeURIComponent(accessToken)}; path=/; samesite=strict`;
+  document.cookie = `auth_access_token=${encodeURIComponent(accessToken)}; path=/; samesite=strict`;
+
+  if (user) {
+    const encodedUser = encodeURIComponent(JSON.stringify(user));
+    document.cookie = `authUser=${encodedUser}; path=/; samesite=strict`;
+    document.cookie = `auth_user=${encodedUser}; path=/; samesite=strict`;
+    window.localStorage.setItem('authUser', JSON.stringify(user));
+    window.localStorage.setItem('auth_user', JSON.stringify(user));
+  }
+
+  window.localStorage.setItem('authToken', accessToken);
+  window.localStorage.setItem('auth_access_token', accessToken);
+}
