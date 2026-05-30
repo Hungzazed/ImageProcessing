@@ -13,5 +13,10 @@ export function getProdGatewayBaseUrl() {
 }
 
 export function getPipelineGatewayBaseUrl() {
-  return normalizeGatewayOrigin(process.env.NEXT_PUBLIC_AI_PIPELINE_URL || "");
+  const configuredPipelineBase = normalizeGatewayOrigin(process.env.NEXT_PUBLIC_AI_PIPELINE_URL || "");
+  if (configuredPipelineBase) {
+    return configuredPipelineBase;
+  }
+
+  return normalizeGatewayOrigin(process.env.NEXT_PUBLIC_GATEWAY_URL || "");
 }

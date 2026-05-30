@@ -19,6 +19,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const baseUrl = getBaseUrl();
+    if (!baseUrl) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Missing pipeline gateway URL. Set NEXT_PUBLIC_AI_PIPELINE_URL or NEXT_PUBLIC_GATEWAY_URL.',
+        },
+        { status: 500 }
+      );
+    }
+
     const forwardFormData = new FormData();
     for (const [key, value] of incomingFormData.entries()) {
       if (key === 'operation') continue;
@@ -42,7 +53,7 @@ export async function POST(request: NextRequest) {
       headers['Authorization'] = authHeader;
     }
 
-    const targetUrl = `${getBaseUrl()}/${operation}`;
+    const targetUrl = `${baseUrl}/${operation}`;
     console.log(`[AI Pipeline Proxy] Forwarding request to: ${targetUrl}`);
 
     const response = await fetch(targetUrl, {
