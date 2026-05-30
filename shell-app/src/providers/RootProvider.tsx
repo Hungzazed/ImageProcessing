@@ -5,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '../stores/authStore';
 import { listenEvent } from '../events/eventBus';
 
+function isAbsoluteHttpUrl(path: string) {
+  return /^https?:\/\//i.test(path);
+}
+
 export default function RootProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const hydrate = useAuthStore((state) => state.hydrate);
@@ -24,6 +28,10 @@ export default function RootProvider({ children }: { children: React.ReactNode }
 
     const unsubNavigate = listenEvent('navigate', (detail) => {
       console.log(`Orchestration routing transition triggered: ${detail.path}`);
+      if (isAbsoluteHttpUrl(detail.path)) {
+        window.location.assign(detail.path);
+        return;
+      }
       router.push(detail.path);
     });
 

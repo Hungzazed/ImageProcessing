@@ -18,6 +18,10 @@ const REMOTE_URLS = {
   users: process.env.NEXT_PUBLIC_USERS_REMOTE_URL || 'https://ui-user-service.vercel.app/',
 };
 
+function isAbsoluteHttpUrl(path: string) {
+  return /^https?:\/\//i.test(path);
+}
+
 export default function RemoteLoader({
   appName,
   moduleName,
@@ -55,6 +59,10 @@ export default function RemoteLoader({
       if (data && typeof data === 'object') {
         if (data.type === 'navigate') {
           console.log(`[Shell] iframe navigation: ${data.path}`);
+          if (typeof data.path === 'string' && isAbsoluteHttpUrl(data.path)) {
+            window.location.assign(data.path);
+            return;
+          }
           router.push(data.path);
         }
         if (data.type === 'auth-login') {

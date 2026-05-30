@@ -14,12 +14,29 @@ export type AuthUser = {
   deletedAt?: string | null;
 };
 
+export type AuthProvider = 'backend' | 'supabase';
+
 const AUTH_TOKEN_KEY = 'authToken';
 const AUTH_REFRESH_TOKEN_KEY = 'authRefreshToken';
 const AUTH_USER_KEY = 'authUser';
+const AUTH_PROVIDER_KEY = 'authProvider';
+
+const SHARED_ACCESS_TOKEN_COOKIE = 'auth_access_token';
+const SHARED_REFRESH_TOKEN_COOKIE = 'auth_refresh_token';
+const SHARED_USER_COOKIE = 'auth_user';
+
+function setCookie(name: string, value: string, maxAgeSeconds = 60 * 60 * 24 * 30) {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; samesite=strict`;
+}
+
+function clearCookie(name: string) {
+  if (typeof document === 'undefined') return;
+  document.cookie = `${name}=; path=/; max-age=0; samesite=strict`;
+}
 
 export const authStorage = {
-  saveSession(accessToken: string, refreshToken: string | null, user: AuthUser | null) {
+  saveSession(accessToken: string, refreshToken: string | null, user: AuthUser | null, provider: AuthProvider = 'backend') {
     if (typeof window === 'undefined') return;
     window.localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
     if (refreshToken) {
@@ -28,14 +45,29 @@ export const authStorage = {
       window.localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
     }
     window.localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+    window.localStorage.setItem(AUTH_PROVIDER_KEY, provider);
+
+    // Share auth state across localhost ports so shell-app/dashboard-ui can consume it.
+    setCookie(SHARED_ACCESS_TOKEN_COOKIE, accessToken);
+    if (refreshToken) {
+      setCookie(SHARED_REFRESH_TOKEN_COOKIE, refreshToken);
+    } else {
+      clearCookie(SHARED_REFRESH_TOKEN_COOKIE);
+    }
+    if (user) {
+      setCookie(SHARED_USER_COOKIE, JSON.stringify(user));
+    } else {
+      clearCookie(SHARED_USER_COOKIE);
+    }
   },
 
   loadSession() {
-    if (typeof window === 'undefined') return { accessToken: null, refreshToken: null, user: null as AuthUser | null };
+    if (typeof window === 'undefined') return { accessToken: null, refreshToken: null, user: null as AuthUser | null, provider: 'backend' as AuthProvider };
 
     const accessToken = window.localStorage.getItem(AUTH_TOKEN_KEY);
     const refreshToken = window.localStorage.getItem(AUTH_REFRESH_TOKEN_KEY);
     const rawUser = window.localStorage.getItem(AUTH_USER_KEY);
+    const provider = (window.localStorage.getItem(AUTH_PROVIDER_KEY) as AuthProvider | null) || 'backend';
 
     let user: AuthUser | null = null;
     if (rawUser) {
@@ -46,7 +78,7 @@ export const authStorage = {
       }
     }
 
-    return { accessToken, refreshToken, user };
+    return { accessToken, refreshToken, user, provider };
   },
 
   clearSession() {
@@ -54,5 +86,10 @@ export const authStorage = {
     window.localStorage.removeItem(AUTH_TOKEN_KEY);
     window.localStorage.removeItem(AUTH_REFRESH_TOKEN_KEY);
     window.localStorage.removeItem(AUTH_USER_KEY);
+    window.localStorage.removeItem(AUTH_PROVIDER_KEY);
+
+    clearCookie(SHARED_ACCESS_TOKEN_COOKIE);
+    clearCookie(SHARED_REFRESH_TOKEN_COOKIE);
+    clearCookie(SHARED_USER_COOKIE);
   },
 };

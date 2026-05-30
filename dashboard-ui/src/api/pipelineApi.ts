@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { getSharedSession } from '@/utils/session';
 
 export type PipelineOptions = {
   resize?: {
@@ -66,7 +67,10 @@ export const pipelineApi = {
 
   // Protected Image Processing trigger
   startProcess: async (payload: ProcessPayload) => {
-    const { data } = await apiClient.post('/process', payload);
+    const { accessToken } = getSharedSession();
+    const { data } = await apiClient.post('/process', payload, {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    });
     return data;
   },
 

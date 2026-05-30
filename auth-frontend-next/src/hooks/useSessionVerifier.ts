@@ -19,6 +19,16 @@ export default function useSessionVerifier(onInvalidSession: () => void) {
 
   useEffect(() => {
     const storedSession = authStorage.loadSession();
+
+    if (storedSession.provider === 'supabase') {
+      // Legacy cleanup: app now relies on backend-issued JWT only.
+      authStorage.clearSession();
+      dispatch(clearSession());
+      onInvalidSessionRef.current();
+      setLoading(false);
+      return;
+    }
+
     if (!storedSession.accessToken && !storedSession.refreshToken) {
       dispatch(clearSession());
       onInvalidSessionRef.current();
@@ -31,7 +41,7 @@ export default function useSessionVerifier(onInvalidSession: () => void) {
     async function renewAccessToken(refreshToken: string) {
       const refreshed = await authApi.refreshAccessToken(refreshToken);
       const nextAccessToken = refreshed.accessToken;
-      authStorage.saveSession(nextAccessToken, refreshed.refreshToken || refreshToken, storedSession.user);
+      authStorage.saveSession(nextAccessToken, refreshed.refreshToken || refreshToken, storedSession.user, storedSession.provider);
       dispatch(setSession({ accessToken: nextAccessToken, user: storedSession.user }));
       return nextAccessToken;
     }
@@ -67,7 +77,7 @@ export default function useSessionVerifier(onInvalidSession: () => void) {
         const profile = await authApi.getUserByEmail(email);
         const mergedUser = authApi.mergeAuthAndProfile(payload.user, profile);
 
-        authStorage.saveSession(token, storedSession.refreshToken, mergedUser);
+        authStorage.saveSession(token, storedSession.refreshToken, mergedUser, storedSession.provider);
         dispatch(setSession({ accessToken: token, user: mergedUser }));
       } catch {
         authStorage.clearSession();
