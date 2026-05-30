@@ -6,6 +6,9 @@ type Props = {
 };
 
 export default function AuthNav({ active = 'login' }: Props) {
+  const shellBaseUrl = (process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+  const dashboardUrl = `${shellBaseUrl}/dashboard`;
+
   const linkClass = (name: string) =>
     `text-sm font-semibold transition-colors ${active === name ? 'text-[#d2bbff]' : 'text-[#ccc3d8] hover:text-[#d2bbff]'} `;
 
@@ -19,7 +22,7 @@ export default function AuthNav({ active = 'login' }: Props) {
       </Link>
       <Link
         className="rounded-full bg-[#7c3aed] px-4 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
-        href="/dashboard"
+        href={dashboardUrl}
       >
         Open Dashboard
       </Link>

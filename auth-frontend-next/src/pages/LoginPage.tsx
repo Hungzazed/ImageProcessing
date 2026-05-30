@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import Link from 'next/link';
@@ -15,8 +15,10 @@ import { authStorage } from '@/store/authStorage';
 import { useDispatch } from 'react-redux';
 import { setSession } from '@/store/authSlice';
 
+const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
+const DASHBOARD_URL = `${SHELL_BASE_URL}/dashboard`;
+
 export function LoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
   const [form, setForm] = useState({ email: '', password: '' });
@@ -51,7 +53,7 @@ export function LoginPage() {
         );
         window.dispatchEvent(
           new CustomEvent('navigate', {
-            detail: { path: '/dashboard' },
+            detail: { path: DASHBOARD_URL },
           })
         );
 
@@ -63,15 +65,28 @@ export function LoginPage() {
           }, '*');
           window.parent.postMessage({
             type: 'navigate',
-            path: '/dashboard',
+            path: DASHBOARD_URL,
           }, '*');
+        } else {
+          window.location.assign(DASHBOARD_URL);
         }
       }
-
-      router.push('/dashboard');
     } catch (submitError: any) {
       setError(submitError.message);
     } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleGoogleLogin() {
+    setLoading(true);
+    setError('');
+
+    try {
+      const backendGoogleAuthUrl = `${authApi.googleAuthUrl}?origin=${encodeURIComponent(window.location.origin)}`;
+      window.location.assign(backendGoogleAuthUrl);
+    } catch (googleError: any) {
+      setError(googleError.message || 'Unable to start Google sign-in');
       setLoading(false);
     }
   }
@@ -91,15 +106,12 @@ export function LoginPage() {
 
       <button
         type="button"
-        onClick={() => {
-          const origin = typeof window !== 'undefined' ? window.location.origin : '';
-          const googleUrl = `${authApi.googleAuthUrl}?origin=${encodeURIComponent(origin)}`;
-          window.location.assign(googleUrl);
-        }}
+        onClick={handleGoogleLogin}
+        disabled={loading}
         className="mb-6 mt-4 flex h-12 w-full items-center justify-center gap-3 rounded-xl border border-[#2d3449] bg-[#1e293b]/80 px-6 text-sm font-semibold text-[#dae2fd] transition-all duration-300 hover:bg-[#1e293b]"
       >
         <GoogleIcon className="h-5 w-5 shrink-0" />
-        Continue with Google
+        {loading ? 'Redirecting...' : 'Continue with Google'}
       </button>
 
       <div className="mb-6 flex items-center gap-4">

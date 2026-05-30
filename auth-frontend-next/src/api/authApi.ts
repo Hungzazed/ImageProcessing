@@ -155,6 +155,13 @@ export const authApi = {
     return data;
   },
   get googleAuthUrl() {
-    return `${API_BASE_URL}/auth/google`;
+    const configuredBase = (API_BASE_URL || '').trim();
+
+    if (configuredBase) {
+      return `${configuredBase}/auth/google`;
+    }
+
+    // Dev fallback when NEXT_PUBLIC_AUTH_API_URL is not provided.
+    return 'http://localhost:3001/auth/google';
   },
 };

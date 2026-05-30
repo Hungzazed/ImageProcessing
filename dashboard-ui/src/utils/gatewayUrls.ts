@@ -7,7 +7,9 @@ export function getGatewayBaseUrl() {
 }
 
 export function getProdGatewayBaseUrl() {
-  return `${getGatewayBaseUrl()}/prod`;
+  const base = getGatewayBaseUrl();
+  if (!base) return '';
+  return base.endsWith('/prod') ? base : `${base}/prod`;
 }
 
 export function getPipelineGatewayBaseUrl() {
