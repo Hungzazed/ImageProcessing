@@ -1,17 +1,39 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { authApi } from '@/api/authApi';
 import AuthCardLayout from '@/layouts/AuthCardLayout';
 import InputField from '@/components/common/InputField';
 import StatusBanner from '@/components/common/StatusBanner';
 
 export function ForgotPasswordPage() {
+  const router = useRouter();
   const [form, setForm] = useState({ email: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  useEffect(() => {
+    const redirectToLogin = () => {
+      router.push('/login?reset=1');
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key === 'password-reset-completed-at') {
+        redirectToLogin();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('password-reset-completed', redirectToLogin);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('password-reset-completed', redirectToLogin);
+    };
+  }, [router]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();

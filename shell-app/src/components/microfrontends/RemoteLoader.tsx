@@ -22,6 +22,20 @@ function isAbsoluteHttpUrl(path: string) {
   return /^https?:\/\//i.test(path);
 }
 
+function resolveAuthRemoteUrl(baseUrl: string, moduleName: string) {
+  if (!isAbsoluteHttpUrl(baseUrl)) return baseUrl;
+
+  const url = new URL(baseUrl);
+
+  if (moduleName.toLowerCase().includes('register')) {
+    url.pathname = '/register';
+  } else if (moduleName.toLowerCase().includes('login')) {
+    url.pathname = '/login';
+  }
+
+  return url.toString();
+}
+
 export default function RemoteLoader({
   appName,
   moduleName,
@@ -80,8 +94,8 @@ export default function RemoteLoader({
 
   if (!mounted) return null;
 
-  const url = REMOTE_URLS[appName];
   const isAuth = appName === 'auth';
+  const url = isAuth ? resolveAuthRemoteUrl(REMOTE_URLS[appName], moduleName) : REMOTE_URLS[appName];
 
   // ── Auth: full-bleed iframe, fills the shell body completely ──────────────
   if (isAuth) {
