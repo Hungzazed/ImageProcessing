@@ -2,9 +2,19 @@ import axios from 'axios';
 
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
-export const API_BASE_URL = stripTrailingSlash(
+const configuredAuthBaseUrl = stripTrailingSlash(
   process.env.NEXT_PUBLIC_AUTH_API_URL || ''
 );
+
+const isLocalDevHost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1'
+);
+
+export const API_BASE_URL =
+  isLocalDevHost && (!configuredAuthBaseUrl || configuredAuthBaseUrl.includes('execute-api'))
+    ? 'http://localhost:3001'
+    : configuredAuthBaseUrl;
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,

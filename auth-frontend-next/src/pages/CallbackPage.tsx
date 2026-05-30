@@ -7,6 +7,7 @@ import { authApi } from '@/api/authApi';
 import { authStorage, type AuthUser } from '@/store/authStorage';
 import { setSession } from '@/store/authSlice';
 import AuthCardLayout from '@/layouts/AuthCardLayout';
+import { supabase } from '@/lib/supabase';
 
 const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000').replace(/\/+$/, '');
 const DASHBOARD_URL = `${SHELL_BASE_URL}/dashboard`;
@@ -23,6 +24,26 @@ function decodeBase64Url(value: string) {
       .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
       .join('')
   );
+}
+
+function mapSupabaseUserToAuthUser(supabaseUser: { id: string; email?: string | null; user_metadata?: Record<string, unknown>; created_at?: string; updated_at?: string }): AuthUser {
+  const metadata = supabaseUser.user_metadata || {};
+  const fullName = typeof metadata.full_name === 'string'
+    ? metadata.full_name
+    : typeof metadata.name === 'string'
+      ? metadata.name
+      : '';
+
+  return {
+    id: supabaseUser.id,
+    _id: supabaseUser.id,
+    name: fullName || supabaseUser.email || 'Google user',
+    email: supabaseUser.email || '',
+    isVerified: true,
+    role: 'user',
+    createdAt: supabaseUser.created_at,
+    updatedAt: supabaseUser.updated_at,
+  };
 }
 
 export function CallbackPage() {
@@ -76,6 +97,55 @@ export function CallbackPage() {
           ? new URLSearchParams(window.location.hash.replace(/^#/, ''))
           : new URLSearchParams();
 
+        const oauthError = searchParams?.get('error') || hashParams.get('error') || '';
+        const oauthErrorDescription = searchParams?.get('error_description') || hashParams.get('error_description') || '';
+
+        if (oauthError) {
+          throw new Error(oauthErrorDescription || `Google OAuth failed: ${oauthError}`);
+        }
+
+        const { data: existingSessionData } = await supabase.auth.getSession();
+        if (existingSessionData?.session) {
+          const existingSession = existingSessionData.session;
+          const existingUser = mapSupabaseUserToAuthUser(existingSession.user);
+          authStorage.saveSession(existingSession.access_token, existingSession.refresh_token ?? null, existingUser, 'supabase');
+          dispatch(setSession({ accessToken: existingSession.access_token, user: existingUser }));
+          notifyShellLogin(existingSession.access_token, existingSession.refresh_token ?? null, existingUser);
+
+          if (alive) {
+            setStatus('Google sign-in successful. Redirecting to the dashboard...');
+          }
+
+          return;
+        }
+
+        const code = searchParams?.get('code');
+
+        if (code) {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+          if (error) {
+            throw error;
+          }
+
+          const session = data.session;
+
+          if (!session) {
+            throw new Error('No Supabase session was returned.');
+          }
+
+          const user = mapSupabaseUserToAuthUser(session.user);
+          authStorage.saveSession(session.access_token, session.refresh_token ?? null, user, 'supabase');
+          dispatch(setSession({ accessToken: session.access_token, user }));
+          notifyShellLogin(session.access_token, session.refresh_token ?? null, user);
+
+          if (alive) {
+            setStatus('Google sign-in successful. Redirecting to the dashboard...');
+          }
+
+          return;
+        }
+
         const accessTokenFromQuery =
           searchParams?.get('accessToken') ||
           hashParams.get('access_token') ||
@@ -89,37 +159,8 @@ export function CallbackPage() {
           ? JSON.parse(decodeBase64Url(encodedUserFromQuery))
           : null;
 
-        const oauthError = searchParams?.get('error') || hashParams.get('error') || '';
-        const oauthErrorDescription = searchParams?.get('error_description') || hashParams.get('error_description') || '';
-
-        if (oauthError) {
-          throw new Error(oauthErrorDescription || `Google OAuth failed: ${oauthError}`);
-        }
-
-        // Prefer backend-issued callback tokens when present.
-        if (accessTokenFromQuery && refreshTokenFromQuery) {
-          const session = await authApi.verifyToken(accessTokenFromQuery);
-          const rawUser = decodedUserFromQuery || session.user;
-          const profile = rawUser?.email ? await authApi.getUserByEmail(rawUser.email) : null;
-          const user = authApi.mergeAuthAndProfile(rawUser, profile);
-          const resolvedAccessToken = accessTokenFromQuery || session.accessToken || '';
-
-          if (!resolvedAccessToken) throw new Error('No access token was returned after the callback.');
-          if (!user) throw new Error('No user information was returned after the callback.');
-
-          authStorage.saveSession(resolvedAccessToken, refreshTokenFromQuery, user, 'backend');
-          dispatch(setSession({ accessToken: resolvedAccessToken, user }));
-          notifyShellLogin(resolvedAccessToken, refreshTokenFromQuery, user);
-
-          if (alive) {
-            setStatus('Google sign-in successful. Redirecting to the dashboard...');
-          }
-
-          return;
-        }
-
         if (!accessTokenFromQuery || !refreshTokenFromQuery) {
-          throw new Error('Missing backend callback tokens. Verify auth-service Google OAuth callback and redirect origin.');
+          throw new Error('Missing Google callback tokens. Verify Supabase redirect URLs and OAuth client configuration.');
         }
 
         const session = await authApi.verifyToken(accessTokenFromQuery);
