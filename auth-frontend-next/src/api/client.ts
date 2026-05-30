@@ -3,7 +3,7 @@ import axios from 'axios';
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
 const normalizeAuthBaseUrl = (value: string) => {
-  return stripTrailingSlash(value);
+  return stripTrailingSlash(value || '');
 };
 
 const configuredAuthBaseUrl = normalizeAuthBaseUrl(
