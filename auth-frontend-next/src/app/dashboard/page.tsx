@@ -1,9 +1,16 @@
-import { redirect } from 'next/navigation';
+'use client';
+
+import { useEffect } from 'react';
+import { getShellDashboardUrl } from '@/utils/shellUrl';
 
 export default function Page() {
-  const shellBaseUrl = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
-  if (!shellBaseUrl) {
-    throw new Error('Missing NEXT_PUBLIC_SHELL_APP_URL');
-  }
-  redirect(`${shellBaseUrl}/dashboard`);
+  useEffect(() => {
+    const dashboardUrl = getShellDashboardUrl();
+
+    if (dashboardUrl) {
+      window.location.replace(dashboardUrl);
+    }
+  }, []);
+
+  return null;
 }

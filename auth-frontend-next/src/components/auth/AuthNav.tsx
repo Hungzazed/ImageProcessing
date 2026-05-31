@@ -1,13 +1,13 @@
 import Link from 'next/link';
 import React from 'react';
+import { getShellDashboardUrl } from '@/utils/shellUrl';
 
 type Props = {
   active?: 'login' | 'register' | string;
 };
 
 export default function AuthNav({ active = 'login' }: Props) {
-  const shellBaseUrl = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
-  const dashboardUrl = shellBaseUrl ? `${shellBaseUrl}/dashboard` : '/dashboard';
+  const dashboardUrl = getShellDashboardUrl() || '/dashboard';
 
   const linkClass = (name: string) =>
     `text-sm font-semibold transition-colors ${active === name ? 'text-[#d2bbff]' : 'text-[#ccc3d8] hover:text-[#d2bbff]'} `;

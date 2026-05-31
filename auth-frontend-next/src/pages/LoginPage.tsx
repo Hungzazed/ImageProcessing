@@ -14,8 +14,7 @@ import { authApi } from '@/api/authApi';
 import { authStorage } from '@/store/authStorage';
 import { useDispatch } from 'react-redux';
 import { setSession } from '@/store/authSlice';
-
-const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
+import { getShellDashboardUrl } from '@/utils/shellUrl';
 
 export function LoginPage() {
   const searchParams = useSearchParams();
@@ -24,7 +23,7 @@ export function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const dashboardUrl = SHELL_BASE_URL ? `${SHELL_BASE_URL}/dashboard` : '';
+  const dashboardUrl = getShellDashboardUrl();
 
   const statusMessage = useMemo(() => {
     if (searchParams?.get('verified') === '1') return 'Email đã xác thực. Bạn có thể đăng nhập ngay.';

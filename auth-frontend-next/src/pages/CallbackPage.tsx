@@ -7,8 +7,8 @@ import { authApi } from '@/api/authApi';
 import { authStorage, type AuthUser } from '@/store/authStorage';
 import { setSession } from '@/store/authSlice';
 import AuthCardLayout from '@/layouts/AuthCardLayout';
+import { getShellDashboardUrl } from '@/utils/shellUrl';
 
-const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
 const CALLBACK_LOCK_PREFIX = 'googleCallbackProcessing:';
 
 function clearGoogleCallbackLocks() {
@@ -24,7 +24,7 @@ export function CallbackPage() {
   const dispatch = useDispatch();
   const [status, setStatus] = useState('Completing Google sign-in...');
   const [error, setError] = useState('');
-  const dashboardUrl = SHELL_BASE_URL ? `${SHELL_BASE_URL}/dashboard` : '';
+  const dashboardUrl = getShellDashboardUrl();
 
   function buildGooglePhoneNumber(email: string) {
     const seed = email
