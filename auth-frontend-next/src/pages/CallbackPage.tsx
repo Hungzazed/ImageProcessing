@@ -7,7 +7,7 @@ import { authApi } from '@/api/authApi';
 import { authStorage, type AuthUser } from '@/store/authStorage';
 import { setSession } from '@/store/authSlice';
 import AuthCardLayout from '@/layouts/AuthCardLayout';
-import { getShellDashboardUrl } from '@/utils/shellUrl';
+import { getShellBaseUrl, getShellDashboardUrl } from '@/utils/shellUrl';
 
 const CALLBACK_LOCK_PREFIX = 'googleCallbackProcessing:';
 const processedCallbackTokens = new Set<string>();
@@ -40,6 +40,26 @@ export function CallbackPage() {
 
   function notifyShellLogin(accessToken: string, refreshToken: string | null, user: AuthUser) {
     if (typeof window === 'undefined') return;
+
+    const shellBaseUrl = getShellBaseUrl();
+    const isCrossOriginShell = shellBaseUrl && shellBaseUrl !== window.location.origin;
+
+    if (isCrossOriginShell && window === window.parent) {
+      const shellCallbackUrl = new URL('/auth/callback', shellBaseUrl);
+      shellCallbackUrl.searchParams.set('accessToken', accessToken);
+      if (refreshToken) {
+        shellCallbackUrl.searchParams.set('refreshToken', refreshToken);
+      }
+      shellCallbackUrl.searchParams.set(
+        'user',
+        btoa(unescape(encodeURIComponent(JSON.stringify(user))))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/g, '')
+      );
+      window.location.assign(shellCallbackUrl.toString());
+      return;
+    }
 
     window.dispatchEvent(
       new CustomEvent('auth-login', {

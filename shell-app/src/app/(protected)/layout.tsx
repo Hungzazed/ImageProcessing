@@ -59,7 +59,14 @@ export default function ProtectedLayout({
     if (!mounted) return;
 
     const handleMessage = (event: MessageEvent) => {
+      const allowedOrigins = [
+        process.env.NEXT_PUBLIC_AUTH_REMOTE_ORIGIN,
+        process.env.NEXT_PUBLIC_DASHBOARD_REMOTE_ORIGIN,
+        process.env.NEXT_PUBLIC_USERS_REMOTE_ORIGIN,
+      ].filter(Boolean) as string[];
+
       const isAllowedOrigin =
+        allowedOrigins.some((origin) => event.origin.startsWith(origin)) ||
         event.origin.startsWith('http://localhost:') ||
         event.origin.startsWith('https://ui-user-service.vercel.app');
 
@@ -73,7 +80,7 @@ export default function ProtectedLayout({
         }
         if (data.type === 'auth-login') {
           console.log('[Shell] iframe auth-login synced');
-          login(data.accessToken, '', data.user);
+          login(data.accessToken, data.refreshToken || null, data.user);
         }
         if (data.type === 'auth-ready' && accessToken) {
           dashboardIframeRef.current?.contentWindow?.postMessage(

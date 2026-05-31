@@ -81,7 +81,7 @@ export default function RemoteLoader({
         }
         if (data.type === 'auth-login') {
           console.log('[Shell] iframe auth-login synced');
-          login(data.accessToken, '', data.user);
+          login(data.accessToken, data.refreshToken || null, data.user);
         }
       }
     };
