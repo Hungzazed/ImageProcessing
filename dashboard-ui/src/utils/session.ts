@@ -35,7 +35,7 @@ function parseUser(rawUser: string | null): SharedUser | null {
 
 export function getSharedSession() {
   if (typeof window === 'undefined') {
-    return { accessToken: null as string | null, user: null as SharedUser | null };
+    return { accessToken: null as string | null, refreshToken: null as string | null, user: null as SharedUser | null };
   }
 
   const accessToken =
@@ -43,6 +43,12 @@ export function getSharedSession() {
     readCookie('auth_access_token') ||
     window.localStorage.getItem('authToken') ||
     window.localStorage.getItem('auth_access_token');
+
+  const refreshToken =
+    readCookie('authRefreshToken') ||
+    readCookie('auth_refresh_token') ||
+    window.localStorage.getItem('authRefreshToken') ||
+    window.localStorage.getItem('auth_refresh_token');
 
   const rawUser =
     readCookie('authUser') ||
@@ -52,15 +58,22 @@ export function getSharedSession() {
 
   return {
     accessToken,
+    refreshToken,
     user: parseUser(rawUser),
   };
 }
 
-export function saveSharedSession(accessToken: string, user: SharedUser | null) {
+export function saveSharedSession(accessToken: string, user: SharedUser | null, refreshToken?: string | null) {
   if (typeof window === 'undefined') return;
 
   document.cookie = `authToken=${encodeURIComponent(accessToken)}; path=/; samesite=strict`;
   document.cookie = `auth_access_token=${encodeURIComponent(accessToken)}; path=/; samesite=strict`;
+  if (refreshToken) {
+    document.cookie = `authRefreshToken=${encodeURIComponent(refreshToken)}; path=/; samesite=strict`;
+    document.cookie = `auth_refresh_token=${encodeURIComponent(refreshToken)}; path=/; samesite=strict`;
+    window.localStorage.setItem('authRefreshToken', refreshToken);
+    window.localStorage.setItem('auth_refresh_token', refreshToken);
+  }
 
   if (user) {
     const encodedUser = encodeURIComponent(JSON.stringify(user));
