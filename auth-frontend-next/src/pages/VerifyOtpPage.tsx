@@ -19,28 +19,6 @@ export function VerifyOtpPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  function getPendingRegistrationData() {
-    const fallbackName = form.email.split('@')[0] || form.email;
-    const fallbackData = { name: fallbackName, email: form.email, phoneNumber: '' };
-
-    if (typeof window === 'undefined') return fallbackData;
-
-    const rawData = sessionStorage.getItem('pendingRegistrationData');
-    if (!rawData) return fallbackData;
-
-    try {
-      const parsedData = JSON.parse(rawData) as Partial<typeof fallbackData>;
-
-      return {
-        name: parsedData.name || fallbackData.name,
-        email: parsedData.email || fallbackData.email,
-        phoneNumber: parsedData.phoneNumber || fallbackData.phoneNumber,
-      };
-    } catch {
-      return fallbackData;
-    }
-  }
-
   useEffect(() => {
     if (form.email) return;
 
@@ -57,16 +35,6 @@ export function VerifyOtpPage() {
 
     try {
       await authApi.verifyOtp(form);
-      const pendingRegistrationData = getPendingRegistrationData();
-
-      await authApi.ensureUserProfile(
-        authApi.prepareUserPayload({
-          name: pendingRegistrationData.name,
-          email: pendingRegistrationData.email,
-          password: '',
-          phoneNumber: pendingRegistrationData.phoneNumber,
-        })
-      );
 
       sessionStorage.removeItem('pendingRegistrationEmail');
       sessionStorage.removeItem('pendingRegistrationData');

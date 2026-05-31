@@ -8,6 +8,7 @@ const sendEmail = require("../utils/sendEmail");
 const { enqueueOtpEmail } = require("../utils/otpEmailQueue");
 const { enqueuePasswordResetEmail } = require("../utils/passwordResetEmailQueue");
 const { getAccessTokenFromRequest, getRefreshTokenFromRequest, verifyAccessToken } = require("../middleware/auth");
+const { ensureUserProfile, getUserByEmail } = require("../utils/userServiceClient");
 
 const OTP_EXPIRES_IN_MINUTES = 1;
 const RESET_TOKEN_EXPIRES_IN_MINUTES = 30;
@@ -18,6 +19,62 @@ const generateResetToken = () => randomBytes(32).toString('hex');
 const hashToken = (token) => createHash('sha256').update(token).digest('hex');
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
 const encodeBase64Url = (value) => Buffer.from(String(value), 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+
+const toPublicAuthUser = (user) => {
+    const source = user && user._doc ? user._doc : user;
+    if (!source) return null;
+
+    const { password, refreshToken, ...userData } = source;
+    return userData;
+};
+
+const normalizeProfilePayload = (profile) => {
+    if (!profile || typeof profile !== 'object') return null;
+    return profile.user || profile.data || profile;
+};
+
+const mergeAuthAndProfile = (authUser, profile) => {
+    const normalizedProfile = normalizeProfilePayload(profile);
+    if (!authUser && !normalizedProfile) return null;
+
+    return {
+        ...(authUser || {}),
+        ...(normalizedProfile || {}),
+        id: normalizedProfile && normalizedProfile.id != null
+            ? String(normalizedProfile.id)
+            : authUser && authUser.id,
+        name: (normalizedProfile && normalizedProfile.fullName) || (authUser && authUser.name),
+        email: (normalizedProfile && normalizedProfile.email) || (authUser && authUser.email),
+    };
+};
+
+const safeGetUserProfile = async (email) => {
+    try {
+        return await getUserByEmail(email);
+    } catch (error) {
+        console.error('user-service profile fetch failed:', {
+            email,
+            status: error.response && error.response.status,
+            data: error.response && error.response.data,
+            message: error.message,
+        });
+        return null;
+    }
+};
+
+const safeEnsureUserProfile = async ({ name, email, phoneNumber, stableId }) => {
+    try {
+        return await ensureUserProfile({ name, email, phoneNumber, stableId });
+    } catch (error) {
+        console.error('user-service profile sync failed:', {
+            email,
+            status: error.response && error.response.status,
+            data: error.response && error.response.data,
+            message: error.message,
+        });
+        return null;
+    }
+};
 
 exports.register = async (req, res) => {
     const { name, email, password } = req.body;
@@ -90,13 +147,15 @@ exports.login = async (req, res) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    const { password: _, refreshToken: __, ...userData } = user._doc;
+    const userData = toPublicAuthUser(user);
+    const profile = await safeGetUserProfile(user.email);
 
     res.json({
         message: "Login success",
         accessToken,
         refreshToken,
-        user: userData
+        user: mergeAuthAndProfile(userData, profile),
+        profile: normalizeProfilePayload(profile)
     })
 }
 
@@ -279,19 +338,39 @@ const verifyOtp = async (req, res) => {
         if (existingUser) {
             await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
             console.warn(`verifyOtp: auth user already exists for email=${emailTrimmed}, treating verify as success`);
-            return res.status(200).json({ message: "OTP verified successfully" });
+            const profile = await safeEnsureUserProfile({
+                name: existingUser.name || pendingRegistration.name,
+                email: emailTrimmed,
+                stableId: existingUser._id,
+            });
+
+            return res.status(200).json({
+                message: "OTP verified successfully",
+                user: mergeAuthAndProfile(toPublicAuthUser(existingUser), profile),
+                profile: normalizeProfilePayload(profile),
+            });
         }
 
         try {
             const user = await User.create({
+                name: pendingRegistration.name,
                 email: emailTrimmed,
                 password: pendingRegistration.passwordHash,
                 isVerified: true
             });
 
             await PendingRegistration.deleteOne({ _id: pendingRegistration._id });
+            const profile = await safeEnsureUserProfile({
+                name: pendingRegistration.name,
+                email: emailTrimmed,
+                stableId: user._id,
+            });
 
-            return res.status(201).json({ message: "OTP verified successfully", user });
+            return res.status(201).json({
+                message: "OTP verified successfully",
+                user: mergeAuthAndProfile(toPublicAuthUser(user), profile),
+                profile: normalizeProfilePayload(profile),
+            });
         } catch (err) {
             // handle duplicate key race (email unique index) or other create-time errors
             console.error('verifyOtp: user creation failed', err && (err.stack || err.message || err));
@@ -360,13 +439,19 @@ exports.googleCallback = async (req, res) => {
 
         user.refreshToken = refreshToken;
         await user.save();
+        const profile = await safeGetUserProfile(user.email);
+        const mergedUser = mergeAuthAndProfile(toPublicAuthUser(user), profile);
 
         const userInfo = JSON.stringify({
-            _id: user._id,
-            name: user.name,
-            email: user.email,
-            isVerified: user.isVerified,
-            role: user.role
+            _id: mergedUser && mergedUser._id,
+            id: mergedUser && mergedUser.id,
+            name: mergedUser && mergedUser.name,
+            email: mergedUser && mergedUser.email,
+            isVerified: mergedUser && mergedUser.isVerified,
+            role: mergedUser && mergedUser.role,
+            username: mergedUser && mergedUser.username,
+            fullName: mergedUser && mergedUser.fullName,
+            phoneNumber: mergedUser && mergedUser.phoneNumber,
         });
 
         const encodedUser = encodeBase64Url(userInfo);
@@ -396,8 +481,9 @@ exports.getProfile = async (req, res) => {
         const user = await User.findById(req.userId).select('-password -refreshToken');
 
         if (!user) return res.status(404).json({ message: "User not found" });
+        const profile = await safeGetUserProfile(user.email);
 
-        res.json({ user });
+        res.json({ user: mergeAuthAndProfile(toPublicAuthUser(user), profile), profile: normalizeProfilePayload(profile) });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -418,10 +504,12 @@ exports.verifyToken = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
+        const profile = await safeGetUserProfile(user.email);
 
         return res.json({
             valid: true,
-            user,
+            user: mergeAuthAndProfile(toPublicAuthUser(user), profile),
+            profile: normalizeProfilePayload(profile),
             accessToken: token,
         });
     } catch (error) {

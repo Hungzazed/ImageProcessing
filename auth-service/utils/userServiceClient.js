@@ -84,5 +84,6 @@ const ensureUserProfile = async ({ name, email, phoneNumber, stableId }) => {
 };
 
 module.exports = {
+    getUserByEmail,
     ensureUserProfile,
 };

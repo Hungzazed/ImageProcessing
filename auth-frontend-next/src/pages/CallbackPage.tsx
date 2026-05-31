@@ -27,17 +27,6 @@ export function CallbackPage() {
   const [error, setError] = useState('');
   const dashboardUrl = getShellDashboardUrl();
 
-  function buildGooglePhoneNumber(email: string) {
-    const seed = email
-      .split('')
-      .reduce((total, char) => total + char.charCodeAt(0), 0)
-      .toString()
-      .padEnd(8, '0')
-      .slice(0, 8);
-
-    return `09${seed}`;
-  }
-
   function notifyShellLogin(accessToken: string, refreshToken: string | null, user: AuthUser) {
     if (typeof window === 'undefined') return;
 
@@ -152,24 +141,7 @@ export function CallbackPage() {
 
         const session = await authApi.verifyToken(accessTokenFromQuery);
         const rawUser = decodedUserFromQuery || session.user;
-        let profile = rawUser?.email ? await authApi.getUserByEmail(rawUser.email) : null;
-
-        if (!profile && rawUser?.email) {
-          try {
-            profile = await authApi.ensureUserProfile(
-              authApi.prepareUserPayload({
-                name: rawUser.fullName || rawUser.name || rawUser.email.split('@')[0],
-                email: rawUser.email,
-                password: '',
-                phoneNumber: rawUser.phoneNumber || buildGooglePhoneNumber(rawUser.email),
-              })
-            );
-          } catch (profileError) {
-            console.error('Unable to sync Google user profile with user-service', profileError);
-          }
-        }
-
-        const user = authApi.mergeAuthAndProfile(rawUser, profile);
+        const user = rawUser;
         const resolvedAccessToken = accessTokenFromQuery || session.accessToken || '';
 
         if (!resolvedAccessToken) throw new Error('No access token was returned after the callback.');

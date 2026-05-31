@@ -38,8 +38,7 @@ export function LoginPage() {
 
     try {
       const result = await authApi.login(form);
-      const profile = await authApi.getUserByEmail(result.user?.email || form.email);
-      const sessionUser = authApi.mergeAuthAndProfile(result.user, profile);
+      const sessionUser = result.user;
 
       authStorage.saveSession(result.accessToken, result.refreshToken, sessionUser);
       dispatch(setSession({ accessToken: result.accessToken, user: sessionUser }));

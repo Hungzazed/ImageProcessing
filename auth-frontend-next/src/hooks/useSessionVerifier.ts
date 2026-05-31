@@ -73,9 +73,7 @@ export default function useSessionVerifier(onInvalidSession: () => void) {
 
         if (!alive) return;
 
-        const email = payload.user && payload.user.email ? String(payload.user.email) : '';
-        const profile = await authApi.getUserByEmail(email);
-        const mergedUser = authApi.mergeAuthAndProfile(payload.user, profile);
+        const mergedUser = payload.user;
 
         authStorage.saveSession(token, storedSession.refreshToken, mergedUser, storedSession.provider);
         dispatch(setSession({ accessToken: token, user: mergedUser }));
