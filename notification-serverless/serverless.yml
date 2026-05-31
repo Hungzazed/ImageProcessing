@@ -88,6 +88,34 @@ functions:
           arn: arn:aws:sqs:${self:provider.region}:${aws:accountId}:image-pipeline-app-${self:provider.stage}-notification-queue
           batchSize: 10
 
+  saveSubscription:
+    handler: functions/subscriptions/index.save
+    description: Lưu cấu hình đăng ký thông báo của người dùng vào DynamoDB
+    timeout: 10
+    package:
+      patterns:
+        - "functions/subscriptions/**"
+        - "common/**"
+    events:
+      - http:
+          path: users/{userId}/subscriptions
+          method: post
+          cors: true
+
+  getSubscriptions:
+    handler: functions/subscriptions/index.get
+    description: Lấy danh sách đăng ký thông báo của người dùng từ DynamoDB
+    timeout: 10
+    package:
+      patterns:
+        - "functions/subscriptions/**"
+        - "common/**"
+    events:
+      - http:
+          path: users/{userId}/subscriptions
+          method: get
+          cors: true
+
 resources:
   Resources:
     # Subscriptions Database (DynamoDB)

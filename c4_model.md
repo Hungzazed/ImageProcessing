@@ -66,9 +66,9 @@ C4Container
 
     %% Client Interactions
     Rel(user, shell, "Truy cập ứng dụng", "HTTPS")
-    Rel(shell, auth_ui, "Tải động", "Module Federation")
-    Rel(shell, dashboard_ui, "Tải động", "Module Federation")
-    Rel(shell, user_ui, "Tải động", "Module Federation")
+    Rel(shell, auth_ui, "Nhúng qua Iframe & đồng bộ trạng thái", "HTTPS / postMessage")
+    Rel(shell, dashboard_ui, "Nhúng qua Iframe & đồng bộ trạng thái", "HTTPS / postMessage")
+    Rel(shell, user_ui, "Nhúng qua Iframe & đồng bộ trạng thái", "HTTPS / postMessage")
     
     %% Auth Flows
     Rel(auth_ui, auth_service, "Yêu cầu đăng ký / đăng nhập", "HTTP POST /auth")
