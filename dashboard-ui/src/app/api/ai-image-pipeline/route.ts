@@ -7,6 +7,25 @@ function getBaseUrl() {
   return DEFAULT_BASE_URL.replace(/\/$/, '');
 }
 
+function shouldForwardAuthorization(targetUrl: string, authHeader: string | null) {
+  if (!authHeader) return false;
+
+  try {
+    const host = new URL(targetUrl).hostname;
+    const isAwsEndpoint = host.endsWith('.amazonaws.com');
+    const isSigV4 = /^AWS4-HMAC-SHA256\s/i.test(authHeader);
+
+    // AWS endpoints configured for IAM require SigV4 auth format.
+    if (isAwsEndpoint && !isSigV4) {
+      return false;
+    }
+  } catch {
+    // If URL parsing fails, keep existing behavior and forward header.
+  }
+
+  return true;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const contentType = request.headers.get('content-type') || '';
@@ -23,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     const authHeader = request.headers.get('authorization');
     const headers: Record<string, string> = {};
-    if (authHeader) {
+    if (shouldForwardAuthorization(baseUrl, authHeader)) {
       headers['Authorization'] = authHeader;
     }
 

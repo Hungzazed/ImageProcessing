@@ -1,6 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getProdGatewayBaseUrl } from '@/utils/gatewayUrls';
 
+function shouldForwardAuthorization(targetUrl: string, authHeader: string | null) {
+	if (!authHeader) return false;
+
+	try {
+		const host = new URL(targetUrl).hostname;
+		const isAwsEndpoint = host.endsWith('.amazonaws.com');
+		const isSigV4 = /^AWS4-HMAC-SHA256\s/i.test(authHeader);
+
+		// AWS endpoints configured for IAM require SigV4 auth format.
+		if (isAwsEndpoint && !isSigV4) {
+			return false;
+		}
+	} catch {
+		// If URL parsing fails, keep existing behavior and forward header.
+	}
+
+	return true;
+}
+
 export async function GET(request: NextRequest) {
 	return handleProxyRequest(request);
 }
@@ -27,7 +46,7 @@ async function handleProxyRequest(request: NextRequest) {
 		const contentType = request.headers.get('content-type') || '';
 
 		const headers: Record<string, string> = {};
-		if (authHeader) {
+		if (shouldForwardAuthorization(targetUrl, authHeader)) {
 			headers['Authorization'] = authHeader;
 		}
 		if (contentType) {
