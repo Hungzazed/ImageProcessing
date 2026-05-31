@@ -1,7 +1,12 @@
 import React from 'react';
 
 interface ConfigureStepProps {
-  uploadedFile: any;
+  uploadedFile: {
+    name: string;
+    size: string;
+    resolution: string;
+    previewUrl: string;
+  };
   enableResize: boolean;
   setEnableResize: (val: boolean) => void;
   resizeWidth: number;
@@ -169,7 +174,7 @@ export default function ConfigureStep({
                   <label className="text-xs font-semibold text-on-surface-variant">Fit Mode</label>
                   <select
                     value={resizeFit}
-                    onChange={(e: any) => setResizeFit(e.target.value)}
+                    onChange={(e) => setResizeFit(e.target.value as 'cover' | 'contain' | 'fill')}
                     className="bg-surface border border-white/10 rounded-lg p-2.5 text-sm text-on-surface outline-none focus:border-primary transition-all cursor-pointer"
                   >
                     <option value="cover" className="bg-surface-container">Cover (Crop to fill)</option>

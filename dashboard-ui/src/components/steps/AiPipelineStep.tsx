@@ -342,30 +342,6 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
           {/* LEFT SECTION: CONTROLS PANEL */}
           <section className="bg-slate-900/60 backdrop-blur-xl rounded-[32px] p-8 border border-white/10 shadow-[0_24px_60px_rgba(0,0,0,0.4)] relative overflow-hidden group">
             <div className="absolute top-0 right-0 w-80 h-80 bg-primary/5 rounded-full blur-[100px] pointer-events-none -mr-20 -mt-20 group-hover:bg-primary/10 transition-all duration-700" />
-            
-            <div className="flex items-start justify-between gap-4 mb-8 relative z-10">
-              <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 text-[10px] font-bold uppercase tracking-[0.24em] text-secondary">
-                  <span className="material-symbols-outlined text-[10px] animate-spin">smart_toy</span>
-                  Neural Processing
-                </span>
-                <h2 className="mt-3 text-2.5xl font-display font-extrabold text-white tracking-tight">AI Settings & Tools</h2>
-                <p className="mt-2 text-xs text-on-surface-variant leading-relaxed">
-                  Upload an image, pick a model mode below, customize your options, and trigger the cloud processor.
-                </p>
-              </div>
-
-              {embedded && onClose && (
-                <button
-                  onClick={onClose}
-                  className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-xs font-bold text-gray-300 hover:text-white hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer flex items-center gap-1"
-                >
-                  <span className="material-symbols-outlined text-[14px]">close</span>
-                  Close Panel
-                </button>
-              )}
-            </div>
-
             <div className="space-y-6 relative z-10">
               {/* 1. Mode Select (Visual Cards) */}
               <div className="space-y-3">
@@ -404,11 +380,11 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
                         mode === 'product-enhance' ? 'bg-secondary text-slate-950' : 'bg-white/5 text-slate-400 group-hover/card:text-white'
                       }`}>
-                        <span className="material-symbols-outlined text-[20px]">shopping_bag</span>
+                        <span className="material-symbols-outlined text-[20px]">background_replace</span>
                       </div>
                       <div className="text-left">
-                        <p className="text-xs font-bold text-white tracking-wide">Product Enhancer</p>
-                        <p className="text-[10px] text-on-surface-variant/90 mt-0.5">E-commerce cleanup</p>
+                        <p className="text-xs font-bold text-white tracking-wide">Change Color Background</p>
+                        <p className="text-[10px] text-on-surface-variant/90 mt-0.5">Change color background with AI</p>
                       </div>
                     </div>
                   </div>
@@ -509,43 +485,6 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
                           {p}
                         </button>
                       ))}
-                    </div>
-                  </div>
-
-                  {/* Mask Blur and Guidance Scale sliders */}
-                  <div className="grid gap-4 sm:grid-cols-2 pt-2">
-                    <div className="space-y-2 rounded-2xl border border-white/5 bg-white/[0.01] px-5 py-3 hover:border-white/10 transition-colors font-sans">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white">Mask Blur</span>
-                        <span className="text-xs font-extrabold text-primary">{maskBlur}px</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="0"
-                        max="32"
-                        step="1"
-                        value={maskBlur}
-                        onChange={(e) => setMaskBlur(Number(e.target.value))}
-                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                      <span className="text-[9px] text-on-surface-variant font-medium block">Blending edge softness</span>
-                    </div>
-
-                    <div className="space-y-2 rounded-2xl border border-white/5 bg-white/[0.01] px-5 py-3 hover:border-white/10 transition-colors font-sans">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-white">Guidance Scale</span>
-                        <span className="text-xs font-extrabold text-secondary">{guidanceScale}</span>
-                      </div>
-                      <input
-                        type="range"
-                        min="1"
-                        max="20"
-                        step="0.5"
-                        value={guidanceScale}
-                        onChange={(e) => setGuidanceScale(Number(e.target.value))}
-                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-secondary"
-                      />
-                      <span className="text-[9px] text-on-surface-variant font-medium block">How closely to follow prompt</span>
                     </div>
                   </div>
                 </div>
@@ -799,27 +738,6 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
                 </div>
               )}
 
-              {/* 4. Segmented Presets */}
-              <div className="space-y-3">
-                <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#ccc3d8]/80 block">Select Processing Preset</span>
-                <div className="flex bg-slate-950/60 p-1 rounded-2xl border border-white/5">
-                  {PRESET_OPTIONS.map((option) => (
-                    <button
-                      key={option.value}
-                      onClick={() => setPreset(option.value)}
-                      className={`flex-1 flex flex-col items-center py-2.5 px-3 rounded-xl transition-all duration-300 ${
-                        preset === option.value
-                          ? 'bg-primary/20 text-primary border border-primary/20 shadow-[0_2px_10px_rgba(210,187,255,0.05)] scale-[1.01]'
-                          : 'text-on-surface-variant hover:text-white border border-transparent'
-                      }`}
-                    >
-                      <span className="text-xs font-bold">{option.label}</span>
-                      <span className="text-[8px] opacity-75 mt-0.5 font-semibold tracking-wider uppercase">{option.description}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               {/* 5. Toggles (Crop, Sharpen) */}
               <div className="grid gap-4 sm:grid-cols-2">
                 <label className="flex items-center justify-between rounded-2xl border border-white/5 bg-white/[0.01] px-5 py-3 hover:border-white/10 transition-colors">
@@ -893,10 +811,6 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
             {responseData ? (
               <div className="flex flex-col h-full justify-between">
                 <div className="flex items-center justify-between gap-4 mb-5">
-                  <div>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.24em] text-accent-cyan">Comparison Console</span>
-                    <h2 className="mt-1 text-2.5xl font-display font-extrabold text-white tracking-tight">AI Output</h2>
-                  </div>
                   <div className="flex flex-wrap gap-2 text-[9px] font-bold uppercase tracking-[0.18em] text-slate-300">
                     <span className="rounded-xl border border-white/10 bg-slate-950/40 px-3 py-1.5 flex items-center gap-1">
                       <span className="material-symbols-outlined text-[12px]">image</span>

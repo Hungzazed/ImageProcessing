@@ -1,7 +1,12 @@
 import React from 'react';
 
 interface CompareStepProps {
-  uploadedFile: any;
+  uploadedFile: {
+    name: string;
+    size: string;
+    resolution: string;
+    previewUrl: string;
+  };
   originalImageUrl: string;
   processedImageUrl: string | null;
   stageImageUrls?: Partial<Record<'startPipeline' | 'resize' | 'filter' | 'watermark' | 'compress', string>>;
@@ -60,7 +65,7 @@ export default function CompareStep({
       if (unit === 'KB') return Math.round(num * 1024);
       if (unit === 'MB') return Math.round(num * 1024 * 1024);
       if (unit === 'GB') return Math.round(num * 1024 * 1024 * 1024);
-    } catch (e) {
+    } catch {
       return undefined;
     }
     return undefined;
