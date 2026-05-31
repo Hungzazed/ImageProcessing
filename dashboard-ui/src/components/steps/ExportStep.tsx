@@ -1,7 +1,9 @@
 import React from 'react';
 
 interface ExportStepProps {
-  uploadedFile: any;
+  uploadedFile: {
+    name: string;
+  };
   originalImageUrl: string;
   processedImageUrl: string | null;
   jobAssets?: Array<{ key: string; stage: string; size: number; lastModified: string | null; url: string }>;
@@ -11,7 +13,7 @@ interface ExportStepProps {
   watermarkOpacity: number;
   watermarkPosition: string;
   jobId: string;
-  user: any;
+  user: { id?: string } | null;
   subChannel: 'email' | 'webhook';
   setSubChannel: (val: 'email' | 'webhook') => void;
   subDestination: string;
@@ -20,7 +22,7 @@ interface ExportStepProps {
   setSubEvents: (val: string[]) => void;
   saveSubscription: (e: React.FormEvent) => void;
   saveSubStatus: string;
-  subHistory: any[];
+  subHistory: Array<{ userId: string; id: string; channel: 'email' | 'webhook'; destination: string; events: string[]; isActive: boolean }>;
   onNewPipeline: () => void;
 }
 

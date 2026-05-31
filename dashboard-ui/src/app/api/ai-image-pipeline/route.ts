@@ -95,9 +95,9 @@ export async function POST(request: NextRequest) {
     }
 
     const responseContentType = response.headers.get('content-type') || '';
-    let payload: any;
+    let payload: string | Record<string, unknown>;
     if (responseContentType.includes('application/json')) {
-      payload = await response.json();
+      payload = (await response.json()) as Record<string, unknown>;
     } else {
       payload = await response.text();
     }

@@ -69,13 +69,14 @@ export async function GET(request: NextRequest) {
       const contents = resp.Contents || [];
 
       // dynamically import presigner at runtime to avoid build-time bundling errors
-      let getSignedUrl: any = null;
+      let getSignedUrl:
+        | ((client: S3Client, command: GetObjectCommand, options: { expiresIn: number }) => Promise<string>)
+        | null = null;
       try {
         ({ getSignedUrl } = await import('@aws-sdk/s3-request-presigner'));
-      } catch (err) {
+      } catch (err: unknown) {
         // If presigner isn't installed in this environment, fall back to public URLs.
         // This avoids a 500 and allows local debugging; note: these URLs will fail for private buckets.
-        // eslint-disable-next-line no-console
         console.warn('presigner not available, falling back to public S3 URLs:', String(err));
       }
 
@@ -138,12 +139,15 @@ export async function GET(request: NextRequest) {
       count: items.length,
       items,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Log error to server console for easier debugging
-    // eslint-disable-next-line no-console
     console.error('job-assets error:', error);
     return NextResponse.json(
-      { success: false, error: error?.message || 'Failed to list job assets', details: String(error) },
+      {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to list job assets',
+        details: String(error),
+      },
       { status: 500 }
     );
   }

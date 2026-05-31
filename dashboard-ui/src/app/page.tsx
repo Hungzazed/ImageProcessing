@@ -35,6 +35,26 @@ type JobAsset = {
   url: string;
 };
 
+type AppUser = {
+  id?: string;
+  [key: string]: unknown;
+} | null;
+
+type NotificationSubscription = {
+  userId: string;
+  id: string;
+  channel: 'email' | 'webhook';
+  destination: string;
+  events: string[];
+  isActive: boolean;
+};
+
+const PIPELINE_STAGES = ['startPipeline', 'resize', 'filter', 'watermark', 'compress'] as const;
+
+function isPipelineStage(stage: string): stage is JobAsset['stage'] {
+  return PIPELINE_STAGES.includes(stage as JobAsset['stage']);
+}
+
 type LogMessage = {
   timestamp: string;
   stage: string;
@@ -44,8 +64,9 @@ type LogMessage = {
 
 export default function DashboardPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4 | 5 | 6>(1);
-  const [user, setUser] = useState<any>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const initialSession = getSharedSession();
+  const [user, setUser] = useState<AppUser>(initialSession.user);
+  const [token, setToken] = useState<string | null>(initialSession.accessToken);
   const shellAppUrl = process.env.NEXT_PUBLIC_SHELL_APP_URL || 'http://localhost:3000';
   const pipelineStartedAtRef = useRef<number | null>(null);
 
@@ -91,7 +112,7 @@ export default function DashboardPage() {
   const [subChannel, setSubChannel] = useState<'email' | 'webhook'>('email');
   const [subDestination, setSubDestination] = useState('');
   const [subEvents, setSubEvents] = useState<string[]>(['image.completed', 'image.failed']);
-  const [subHistory, setSubHistory] = useState<any[]>([]);
+  const [subHistory, setSubHistory] = useState<NotificationSubscription[]>([]);
   const [saveSubStatus, setSaveSubStatus] = useState('');
   const [processedImageUrl, setProcessedImageUrl] = useState<string | null>(null);
   const [stageImageUrls, setStageImageUrls] = useState<StageImageUrls>({});
@@ -99,15 +120,6 @@ export default function DashboardPage() {
   const hasRealtimeConfig = Boolean(
     process.env.NEXT_PUBLIC_APPSYNC_ENDPOINT && process.env.NEXT_PUBLIC_APPSYNC_API_KEY
   );
-
-  // ----------------------------------------------------
-  // Initialize Session
-  // ----------------------------------------------------
-  useEffect(() => {
-    const session = getSharedSession();
-    setToken(session.accessToken);
-    setUser(session.user);
-  }, []);
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -357,23 +369,27 @@ export default function DashboardPage() {
 
         // If metadata contains a size, add to jobAssets for metrics
         if (metadata?.size) {
+          const stage = isPipelineStage(stageKey) ? stageKey : 'compress';
+          const assetSize = typeof metadata.size === 'number' ? metadata.size : 0;
           setJobAssets((prev) => {
-            const exists = prev.some((p) => p.stage === stageKey && p.url === stageUrl);
+            const exists = prev.some((p) => p.stage === stage && p.url === stageUrl);
             if (exists) return prev;
             return [
               ...prev,
-              { key: `${stageKey}-${Date.now()}`, stage: stageKey as any, size: metadata.size, lastModified: null, url: stageUrl },
+              { key: `${stage}-${Date.now()}`, stage, size: assetSize, lastModified: null, url: stageUrl },
             ];
           });
         }
       } else if (metadata?.size) {
         // If no URL but size is provided, still add a job asset placeholder so metrics can compute
+        const stage = isPipelineStage(stageKey) ? stageKey : 'compress';
+        const assetSize = typeof metadata.size === 'number' ? metadata.size : 0;
         setJobAssets((prev) => {
-          const exists = prev.some((p) => p.stage === stageKey && !p.url);
+          const exists = prev.some((p) => p.stage === stage && !p.url);
           if (exists) return prev;
           return [
             ...prev,
-            { key: `${stageKey}-${Date.now()}`, stage: stageKey as any, size: metadata.size, lastModified: null, url: '' },
+            { key: `${stage}-${Date.now()}`, stage, size: assetSize, lastModified: null, url: '' },
           ];
         });
       }
@@ -393,15 +409,13 @@ export default function DashboardPage() {
     if (eventType === 'image.completed') {
       setIsProcessing(false);
       const backendProcessingMs = parseProcessingTimeMs(metadata?.processingTime ?? metadata?.duration ?? metadata?.elapsedMs);
-      const fallbackProcessingMs = pipelineStartedAtRef.current ? Date.now() - pipelineStartedAtRef.current : undefined;
-
-      if (backendProcessingMs || fallbackProcessingMs) {
+      if (backendProcessingMs !== undefined) {
         setNodeStatus((prev) => ({
           ...prev,
           compress: {
             ...(prev.compress || { state: 'completed' }),
             state: 'completed',
-            duration: backendProcessingMs ?? fallbackProcessingMs,
+            duration: backendProcessingMs,
           },
         }));
       }
@@ -468,8 +482,8 @@ export default function DashboardPage() {
       } else {
         throw new Error(response.data?.error || 'S3 upload failed');
       }
-    } catch (err: any) {
-      console.warn('Real S3 upload failed, falling back to local sandbox:', err.message);
+    } catch (err: unknown) {
+      console.warn('Real S3 upload failed, falling back to local sandbox:', err instanceof Error ? err.message : String(err));
       setIsUploading(false);
       setS3Uploaded(false);
       setUploadProgress(0); // Reset progress on error
@@ -588,9 +602,6 @@ export default function DashboardPage() {
 
       const actualJobId = responseData?.data?.jobId || responseData?.jobId || fallbackJobId;
       const actualImageId = responseData?.data?.imageId || responseData?.imageId || fallbackImageId;
-      const backendProcessingMs = parseProcessingTimeMs(responseData?.processingTime ?? responseData?.data?.processingTime);
-      const fallbackProcessingMs = pipelineStartedAtRef.current ? Date.now() - pipelineStartedAtRef.current : undefined;
-
       setJobId(actualJobId);
       setImageId(actualImageId);
       void refreshJobAssets(actualJobId);
@@ -604,19 +615,18 @@ export default function DashboardPage() {
           status: 'success',
         },
       ]);
-    } catch (err: any) {
-        const details = err?.response?.data || err?.response || err?.message;
+    } catch (err: unknown) {
+        const details = err instanceof Error ? err.message : 'API Gateway trigger failed';
         setLogs((prev) => [
           ...prev,
           {
             timestamp: new Date().toLocaleTimeString(),
             stage: 'startPipeline',
-            message: `API Gateway trigger failed: ${err.message}. See console for details.`,
+            message: `API Gateway trigger failed: ${details}. See console for details.`,
             status: 'error',
           },
         ]);
         // Log full error details for troubleshooting (status, headers, body)
-        // eslint-disable-next-line no-console
         console.warn('API Gateway POST failed, using simulation mode:', details);
     }
 
@@ -651,8 +661,8 @@ export default function DashboardPage() {
       // Fetch latest
       const updated = await pipelineApi.getSubscriptions(user?.id || 'user-999');
       setSubHistory(Array.isArray(updated) ? updated : [payload]);
-    } catch (err: any) {
-      setSaveSubStatus(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      setSaveSubStatus(`Error: ${err instanceof Error ? err.message : 'Failed to save subscription'}`);
     }
   };
 
@@ -711,7 +721,7 @@ export default function DashboardPage() {
 
           setStageImageUrls((prev) => ({ ...prev, compress: processedImageUrl }));
         }
-      } catch (e) {
+      } catch {
         // ignore proxy errors
       }
     })();
