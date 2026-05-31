@@ -2,6 +2,7 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
 const User = require("../model/user");
+const { ensureUserProfile } = require("../utils/userServiceClient");
 
 passport.use(
   new GoogleStrategy(
@@ -25,6 +26,8 @@ passport.use(
           ]
         });
 
+        let shouldEnsureUserProfile = false;
+
         if (!user) {
           // Tạo user mới nếu chưa tồn tại
           user = await User.create({
@@ -33,11 +36,30 @@ passport.use(
             googleId: profile.id,
             isVerified: true,
           });
+          shouldEnsureUserProfile = true;
         } else if (!user.googleId) {
           // Nếu user tồn tại nhưng chưa có googleId, cập nhật googleId
           user.googleId = profile.id;
           user.isVerified = true;
           await user.save();
+          shouldEnsureUserProfile = true;
+        }
+
+        if (shouldEnsureUserProfile) {
+          try {
+            await ensureUserProfile({
+              name: user.name || profile.displayName,
+              email: user.email || email,
+              stableId: user.googleId || profile.id || user._id,
+            });
+          } catch (profileError) {
+            console.error('Google OAuth user-service profile sync failed:', {
+              email,
+              status: profileError.response && profileError.response.status,
+              data: profileError.response && profileError.response.data,
+              message: profileError.message,
+            });
+          }
         }
 
         done(null, user);

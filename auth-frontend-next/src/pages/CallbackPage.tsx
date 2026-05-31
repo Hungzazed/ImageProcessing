@@ -9,6 +9,7 @@ import { setSession } from '@/store/authSlice';
 import AuthCardLayout from '@/layouts/AuthCardLayout';
 
 const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
+const CALLBACK_LOCK_PREFIX = 'googleCallbackProcessing:';
 
 export function CallbackPage() {
   const searchParams = useSearchParams();
@@ -16,6 +17,17 @@ export function CallbackPage() {
   const [status, setStatus] = useState('Completing Google sign-in...');
   const [error, setError] = useState('');
   const dashboardUrl = SHELL_BASE_URL ? `${SHELL_BASE_URL}/dashboard` : '';
+
+  function buildGooglePhoneNumber(email: string) {
+    const seed = email
+      .split('')
+      .reduce((total, char) => total + char.charCodeAt(0), 0)
+      .toString()
+      .padEnd(8, '0')
+      .slice(0, 8);
+
+    return `09${seed}`;
+  }
 
   function notifyShellLogin(accessToken: string, refreshToken: string | null, user: AuthUser) {
     if (typeof window === 'undefined') return;
@@ -82,6 +94,15 @@ export function CallbackPage() {
           throw new Error('Missing Google callback tokens. Verify redirect URLs and OAuth client configuration.');
         }
 
+        const callbackLockKey = `${CALLBACK_LOCK_PREFIX}${accessTokenFromQuery.slice(0, 24)}`;
+        if (sessionStorage.getItem(callbackLockKey)) {
+          if (alive) {
+            setStatus('Google sign-in successful. Redirecting to the dashboard...');
+          }
+          return;
+        }
+        sessionStorage.setItem(callbackLockKey, String(Date.now()));
+
         let decodedUserFromQuery: AuthUser | null = null;
         if (encodedUserFromQuery) {
           try {
@@ -102,7 +123,23 @@ export function CallbackPage() {
 
         const session = await authApi.verifyToken(accessTokenFromQuery);
         const rawUser = decodedUserFromQuery || session.user;
-        const profile = rawUser?.email ? await authApi.getUserByEmail(rawUser.email) : null;
+        let profile = rawUser?.email ? await authApi.getUserByEmail(rawUser.email) : null;
+
+        if (!profile && rawUser?.email) {
+          try {
+            profile = await authApi.ensureUserProfile(
+              authApi.prepareUserPayload({
+                name: rawUser.fullName || rawUser.name || rawUser.email.split('@')[0],
+                email: rawUser.email,
+                password: '',
+                phoneNumber: rawUser.phoneNumber || buildGooglePhoneNumber(rawUser.email),
+              })
+            );
+          } catch (profileError) {
+            console.error('Unable to sync Google user profile with user-service', profileError);
+          }
+        }
+
         const user = authApi.mergeAuthAndProfile(rawUser, profile);
         const resolvedAccessToken = accessTokenFromQuery || session.accessToken || '';
 
@@ -121,6 +158,14 @@ export function CallbackPage() {
           setStatus('Google sign-in successful. Redirecting to the dashboard...');
         }
       } catch (callbackError: any) {
+        const accessTokenFromQuery =
+          searchParams?.get('accessToken') ||
+          (typeof window !== 'undefined' ? new URLSearchParams(window.location.hash.replace(/^#/, '')).get('access_token') : '') ||
+          '';
+        if (accessTokenFromQuery) {
+          sessionStorage.removeItem(`${CALLBACK_LOCK_PREFIX}${accessTokenFromQuery.slice(0, 24)}`);
+        }
+
         if (alive) {
           setError(callbackError.message);
           setStatus('Unable to complete Google sign-in');
