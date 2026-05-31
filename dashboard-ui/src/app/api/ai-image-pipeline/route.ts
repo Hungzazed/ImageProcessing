@@ -9,16 +9,7 @@ function getBaseUrl() {
 
 export async function POST(request: NextRequest) {
   try {
-    const incomingFormData = await request.formData();
-    const operation = String(incomingFormData.get('operation') || '').trim();
-
-    if (!operation || !['remove-object', 'product-enhance'].includes(operation)) {
-      return NextResponse.json(
-        { success: false, error: 'operation must be remove-object or product-enhance' },
-        { status: 400 }
-      );
-    }
-
+    const contentType = request.headers.get('content-type') || '';
     const baseUrl = getBaseUrl();
     if (!baseUrl) {
       return NextResponse.json(
@@ -30,40 +21,86 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const forwardFormData = new FormData();
-    for (const [key, value] of incomingFormData.entries()) {
-      if (key === 'operation') continue;
-
-      if (value instanceof File) {
-        const arrayBuffer = await value.arrayBuffer();
-        // Use new File instead of new Blob to ensure MIME type (e.g. image/jpeg) is correctly set
-        const file = new File([arrayBuffer], value.name, { type: value.type });
-        forwardFormData.append(key, file);
-      } else {
-        forwardFormData.append(key, value as FormDataEntryValue);
-      }
-    }
-
     const authHeader = request.headers.get('authorization');
-    console.log(`[AI Proxy Debug] Incoming Authorization: ${authHeader ? authHeader.substring(0, 30) + '...' : 'MISSING'}`);
-    console.log(`[AI Proxy Debug] Request headers keys:`, Array.from(request.headers.keys()));
-
     const headers: Record<string, string> = {};
     if (authHeader) {
       headers['Authorization'] = authHeader;
     }
 
-    const targetUrl = `${baseUrl}/${operation}`;
-    console.log(`[AI Pipeline Proxy] Forwarding request to: ${targetUrl}`);
+    let operation = '';
+    let response: Response;
 
-    const response = await fetch(targetUrl, {
-      method: 'POST',
-      headers,
-      body: forwardFormData,
-    });
+    if (contentType.includes('application/json')) {
+      const body = await request.json();
+      operation = String(body.operation || '').trim();
 
-    const contentType = response.headers.get('content-type') || '';
-    const payload = contentType.includes('application/json') ? await response.json() : await response.text();
+      if (!operation || !['remove-object', 'product-enhance'].includes(operation)) {
+        return NextResponse.json(
+          { success: false, error: 'operation must be remove-object or product-enhance' },
+          { status: 400 }
+        );
+      }
+
+      headers['Content-Type'] = 'application/json';
+      const targetUrl = baseUrl.endsWith('/pipeline')
+        ? `${baseUrl}/${operation}`
+        : `${baseUrl}/pipeline/${operation}`;
+      console.log(`[AI Pipeline Proxy JSON] Forwarding to: ${targetUrl}`);
+
+      const forwardBody = {
+        imageUrl: body.imageUrl,
+        ...(operation === 'remove-object' ? { prompt: body.prompt } : { backgroundColor: body.backgroundColor }),
+        options: body.options,
+      };
+
+      response = await fetch(targetUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(forwardBody),
+      });
+    } else {
+      const incomingFormData = await request.formData();
+      operation = String(incomingFormData.get('operation') || '').trim();
+
+      if (!operation || !['remove-object', 'product-enhance'].includes(operation)) {
+        return NextResponse.json(
+          { success: false, error: 'operation must be remove-object or product-enhance' },
+          { status: 400 }
+        );
+      }
+
+      const forwardFormData = new FormData();
+      for (const [key, value] of incomingFormData.entries()) {
+        if (key === 'operation') continue;
+
+        if (value instanceof File) {
+          const arrayBuffer = await value.arrayBuffer();
+          const file = new File([arrayBuffer], value.name, { type: value.type });
+          forwardFormData.append(key, file);
+        } else {
+          forwardFormData.append(key, value as FormDataEntryValue);
+        }
+      }
+
+      const targetUrl = baseUrl.endsWith('/pipeline')
+        ? `${baseUrl}/${operation}`
+        : `${baseUrl}/pipeline/${operation}`;
+      console.log(`[AI Pipeline Proxy FormData] Forwarding to: ${targetUrl}`);
+
+      response = await fetch(targetUrl, {
+        method: 'POST',
+        headers,
+        body: forwardFormData,
+      });
+    }
+
+    const responseContentType = response.headers.get('content-type') || '';
+    let payload: any;
+    if (responseContentType.includes('application/json')) {
+      payload = await response.json();
+    } else {
+      payload = await response.text();
+    }
 
     if (!response.ok) {
       console.error(`[AI Pipeline Proxy Error] Upstream returned status ${response.status}:`, payload);
