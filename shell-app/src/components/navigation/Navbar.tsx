@@ -227,7 +227,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }: NavbarProps) {
                     className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-950/40 hover:text-accent-cyan cursor-pointer transition-colors"
                   >
                     <Settings size={14} />
-                    <span>Orchestration Options</span>
+                    <span>Settings</span>
                   </div>
                 </div>
 
