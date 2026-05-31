@@ -7,10 +7,11 @@ function shouldForwardAuthorization(targetUrl: string, authHeader: string | null
   try {
     const host = new URL(targetUrl).hostname;
     const isAwsEndpoint = host.endsWith('.amazonaws.com');
+    const isBearer = /^Bearer\s+.+/i.test(authHeader);
     const isSigV4 = /^AWS4-HMAC-SHA256\s/i.test(authHeader);
 
-    // AWS endpoints configured for IAM require SigV4 auth format.
-    if (isAwsEndpoint && !isSigV4) {
+    // For AWS endpoints, allow Bearer or SigV4 only; block malformed auth values.
+    if (isAwsEndpoint && !isBearer && !isSigV4) {
       return false;
     }
   } catch {
