@@ -25,16 +25,23 @@ function LogoMark() {
 }
 
 // ── User chip ─────────────────────────────────────────────────────────────────
-function UserChip({ name, email }: { name: string; email?: string }) {
+function UserChip({ name, email, avatar }: { name: string; email?: string; avatar?: string }) {
   const initial = name?.[0]?.toUpperCase() || '?';
   return (
     <div className="flex items-center gap-2.5 rounded-full border border-[#d2bbff]/20 bg-[#d2bbff]/5 pl-1 pr-4 py-1 backdrop-blur-sm transition-all duration-200 hover:border-[#d2bbff]/40 hover:bg-[#d2bbff]/10 cursor-default">
       {/* avatar */}
-      <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#d2bbff] to-[#7c3aed] text-[11px] font-bold text-white shadow-[0_0_12px_rgba(210,187,255,0.35)]">
-        {initial}
-        {/* online dot */}
-        <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-[1.5px] border-[#0b1326] bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
-      </div>
+      {avatar ? (
+        <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full overflow-hidden bg-slate-900">
+          <img src={avatar} alt="avatar" className="h-full w-full object-cover" />
+          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-[1.5px] border-[#0b1326] bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
+        </div>
+      ) : (
+        <div className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#d2bbff] to-[#7c3aed] text-[11px] font-bold text-white shadow-[0_0_12px_rgba(210,187,255,0.35)]">
+          {initial}
+          {/* online dot */}
+          <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-[1.5px] border-[#0b1326] bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
+        </div>
+      )}
       <div className="leading-tight">
         <p className="text-[13px] font-semibold text-white">{name}</p>
         {email && <p className="text-[10px] text-[#ccc3d8]/55 max-w-[160px] truncate">{email}</p>}
@@ -119,7 +126,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
           {/* ── Right: auth state ── */}
           {isAuthenticated && user ? (
-            <UserChip name={user.name || 'User'} email={user.email} />
+            <UserChip name={user.name || 'User'} email={user.email} avatar={(user as any).avatar || (user as any).avatarUrl} />
           ) : (
             <AuthButtons pathname={pathname || ''} />
           )}

@@ -1,3 +1,4 @@
+import axios from 'axios';
 import apiClient from './client';
 import { getSharedSession } from '@/utils/session';
 
@@ -74,23 +75,25 @@ export const pipelineApi = {
     return data;
   },
 
-  // Protected user subscriptions (routed to user service via API gateway)
+  // Protected user subscriptions (routed to notification-serverless API gateway)
   getSubscriptions: async (userId: string) => {
     try {
-      const { data } = await apiClient.get(`/users/${userId}/subscriptions`);
+      const url = `${process.env.NEXT_PUBLIC_NOTIFICATION_API_URL || 'http://localhost:4000'}/users/${userId}/subscriptions`;
+      const { data } = await axios.get(url);
       return data;
-    } catch {
-      // Fallback for demo purposes if DynamoDB subscription endpoint is not yet created
+    } catch (err: any) {
+      console.warn('Notification API getSubscriptions failed, falling back to local storage:', err.message);
       return JSON.parse(localStorage.getItem(`subs_${userId}`) || '[]');
     }
   },
 
   saveSubscription: async (userId: string, payload: SubscriptionPayload) => {
     try {
-      const { data } = await apiClient.post(`/users/${userId}/subscriptions`, payload);
+      const url = `${process.env.NEXT_PUBLIC_NOTIFICATION_API_URL || 'http://localhost:4000'}/users/${userId}/subscriptions`;
+      const { data } = await axios.post(url, payload);
       return data;
-    } catch {
-      // Fallback to local storage if endpoint is not fully ready
+    } catch (err: any) {
+      console.warn('Notification API saveSubscription failed, falling back to local storage:', err.message);
       const current = JSON.parse(localStorage.getItem(`subs_${userId}`) || '[]');
       const index = current.findIndex((s: any) => s.id === payload.id);
       if (index >= 0) {

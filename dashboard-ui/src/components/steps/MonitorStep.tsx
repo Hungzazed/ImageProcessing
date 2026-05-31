@@ -210,7 +210,13 @@ export default function MonitorStep({
                   <span className="text-xs font-bold text-white block">Upload Image</span>
                 </div>
               </div>
-              <span className="text-[10px] font-mono font-bold text-emerald-400 uppercase bg-emerald-500/10 px-2.5 py-0.5 rounded border border-emerald-500/10">Active</span>
+              <span className={`text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded border ${
+                nodeStatus.startPipeline?.state === 'completed'
+                  ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/10'
+                  : 'text-primary bg-primary/10 border-primary/10 animate-pulse'
+              }`}>
+                {nodeStatus.startPipeline?.state === 'completed' ? 'Completed' : 'Active'}
+              </span>
             </div>
 
             {/* Node 2: Resize */}

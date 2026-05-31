@@ -17,6 +17,7 @@ const generateOtp = () => String(randomInt(100000, 1000000));
 const generateResetToken = () => randomBytes(32).toString('hex');
 const hashToken = (token) => createHash('sha256').update(token).digest('hex');
 const normalizeEmail = (value) => String(value || '').trim().toLowerCase();
+const encodeBase64Url = (value) => Buffer.from(String(value), 'utf8').toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 
 exports.register = async (req, res) => {
     const { name, email, password } = req.body;
@@ -367,7 +368,7 @@ exports.googleCallback = async (req, res) => {
             role: user.role
         });
 
-        const encodedUser = Buffer.from(userInfo).toString('base64url');
+        const encodedUser = encodeBase64Url(userInfo);
         const redirectUrl = `${callbackFrontendUrl}/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(encodedUser)}`;
 
         res.redirect(redirectUrl);

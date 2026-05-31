@@ -46,7 +46,25 @@ async function saveNotificationHistory(history) {
   await docClient.send(command);
 }
 
+/**
+ * Saves or updates a user subscription in DynamoDB
+ * @param {Object} subscription
+ */
+async function saveSubscription(subscription) {
+  if (!process.env.SUBSCRIPTIONS_TABLE) {
+    throw new Error('SUBSCRIPTIONS_TABLE environment variable is not defined.');
+  }
+
+  const command = new PutCommand({
+    TableName: process.env.SUBSCRIPTIONS_TABLE,
+    Item: subscription,
+  });
+
+  await docClient.send(command);
+}
+
 module.exports = {
   getSubscriptionsForUser,
-  saveNotificationHistory
+  saveNotificationHistory,
+  saveSubscription,
 };

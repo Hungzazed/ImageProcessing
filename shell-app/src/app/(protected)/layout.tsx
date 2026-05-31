@@ -29,6 +29,7 @@ export default function ProtectedLayout({
   const dashboardRemoteUrl = process.env.NEXT_PUBLIC_DASHBOARD_REMOTE_URL || 'http://localhost:3002/';
   const dashboardRemoteOrigin = process.env.NEXT_PUBLIC_DASHBOARD_REMOTE_ORIGIN || 'http://localhost:3002';
   const usersRemoteUrl = process.env.NEXT_PUBLIC_USERS_REMOTE_URL || 'https://ui-user-service.vercel.app/';
+  const usersRemoteOrigin = process.env.NEXT_PUBLIC_USERS_REMOTE_ORIGIN || 'http://localhost:5173';
 
   useEffect(() => {
     setMounted(true);
@@ -83,6 +84,15 @@ export default function ProtectedLayout({
             },
             dashboardRemoteOrigin
           );
+
+          usersIframeRef.current?.contentWindow?.postMessage(
+            {
+              type: 'auth-login',
+              accessToken,
+              user,
+            },
+            usersRemoteOrigin
+          );
         }
       }
     };
@@ -104,6 +114,15 @@ export default function ProtectedLayout({
         user,
       },
       dashboardRemoteOrigin
+    );
+
+    usersIframeRef.current?.contentWindow?.postMessage(
+      {
+        type: 'auth-login',
+        accessToken,
+        user,
+      },
+      usersRemoteOrigin
     );
   }, [mounted, accessToken, user, dashboardRemoteOrigin, pathname]);
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { S3Client, ListObjectsV2Command, GetObjectCommand } from '@aws-sdk/client-s3';
 
+export const dynamic = 'force-dynamic';
+
 function buildPublicUrl(bucket: string, region: string, key: string) {
   return `https://${bucket}.s3.${region}.amazonaws.com/${key.replace(/^\/+/, '')}`;
 }
