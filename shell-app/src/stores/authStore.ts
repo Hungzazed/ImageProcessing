@@ -102,6 +102,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const userStorage = localStorage.getItem('auth_user');
         if (userStorage) {
           user = JSON.parse(userStorage) as User;
+          // Normalize avatar property if different keys are used by remotes
+          try {
+            const anyUser = user as any;
+            if (!anyUser.avatar && anyUser.avatarUrl) {
+              anyUser.avatar = anyUser.avatarUrl;
+            }
+            user = anyUser as User;
+          } catch (e) {
+            // ignore
+          }
         }
       }
 
