@@ -46,14 +46,16 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config;
+    const status = error.response?.status;
+    const isAuthError = status === 401 || status === 403;
     
-    // Guard: Prevent loops and non-401 errors
-    if (!originalRequest || error.response?.status !== 401 || (originalRequest as any)._retry) {
+    // Guard: Prevent loops and non-auth errors
+    if (!originalRequest || !isAuthError || (originalRequest as any)._retry) {
       return Promise.reject(error);
     }
 
     // Guard: Do not attempt to refresh if the request was the refresh request itself
-    if (originalRequest.url?.includes('/auth/refresh')) {
+    if (originalRequest.url?.includes('/auth/refresh') || originalRequest.url?.includes('/auth/refresh-token')) {
       useAuthStore.getState().logout();
       emitEvent('token-expired', undefined);
       return Promise.reject(error);
@@ -92,12 +94,17 @@ apiClient.interceptors.response.use(
         accessToken: string;
         refreshToken: string;
         user: any;
-      }>(`${API_URL}/auth/refresh`, { refreshToken });
+      }>(`${API_URL}/auth/refresh-token`, { refreshToken });
 
       const { accessToken: newAccessToken, refreshToken: newRefreshToken, user } = response.data;
+      const currentSession = useAuthStore.getState();
 
       // Update Zustand and Cookies
-      useAuthStore.getState().login(newAccessToken, newRefreshToken, user);
+      useAuthStore.getState().login(
+        newAccessToken,
+        newRefreshToken || currentSession.refreshToken,
+        user || currentSession.user
+      );
 
       // Resolve pending requests
       processQueue(null, newAccessToken);

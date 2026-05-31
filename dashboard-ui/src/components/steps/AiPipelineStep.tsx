@@ -169,6 +169,8 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
   const [splitPosition, setSplitPosition] = useState(50);
   const [customColorVal, setCustomColorVal] = useState('#7c3aed');
   const [colorFormat, setColorFormat] = useState<'hex' | 'rgb' | 'hsl'>('hex');
+  const [maskBlur, setMaskBlur] = useState(8);
+  const [guidanceScale, setGuidanceScale] = useState(7.5);
 
   const isPresetColor = (color: string) => ['white', 'black', 'transparent', 'gray'].includes(color);
 
@@ -239,19 +241,41 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
     setResponseData(null);
 
     try {
-      const formData = new FormData();
-      formData.append('image', selectedFile);
-      formData.append('options', JSON.stringify(buildOptions));
-      formData.append('operation', mode);
+      // 1. Upload raw image to S3 first via /api/upload
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', selectedFile);
 
-      if (mode === 'remove-object') {
-        formData.append('prompt', prompt.trim());
-      } else {
-        formData.append('backgroundColor', backgroundColor);
+      const uploadResponse = await fetch('/api/upload', {
+        method: 'POST',
+        body: uploadFormData,
+      });
+
+      const uploadResult = await uploadResponse.json();
+      if (!uploadResponse.ok || !uploadResult.success) {
+        throw new Error(uploadResult.error || 'Failed to upload image to S3');
       }
 
+      const s3Key = uploadResult.key;
+      const bucket = process.env.NEXT_PUBLIC_S3_BUCKET || 'image-pipeline-bucket-prod-108836621838';
+      const region = process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1';
+      const imageUrl = `https://${bucket}.s3.${region}.amazonaws.com/${s3Key.replace(/^\/+/, '')}`;
+
+      // 2. Call AI processing API using application/json
+      const optionsJson = mode === 'remove-object'
+        ? JSON.stringify({ maskBlur, guidanceScale })
+        : JSON.stringify(buildOptions);
+
+      const payload = {
+        operation: mode,
+        imageUrl,
+        ...(mode === 'remove-object' ? { prompt: prompt.trim() } : { backgroundColor }),
+        options: optionsJson,
+      };
+
       const { accessToken } = getSharedSession();
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
       if (accessToken) {
         headers['Authorization'] = `Bearer ${accessToken}`;
       }
@@ -259,23 +283,23 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
       const response = await fetch(`/api/ai-image-pipeline`, {
         method: 'POST',
         headers,
-        body: formData,
+        body: JSON.stringify(payload),
       });
 
       const rawBody = await response.text();
-      let payload: PipelineResponse;
+      let responsePayload: PipelineResponse;
 
       try {
-        payload = JSON.parse(rawBody) as PipelineResponse;
+        responsePayload = JSON.parse(rawBody) as PipelineResponse;
       } catch {
-        payload = response.ok ? { success: true, imageUrl: rawBody } : { success: false, error: rawBody || 'AI pipeline request failed' };
+        responsePayload = response.ok ? { success: true, imageUrl: rawBody } : { success: false, error: rawBody || 'AI pipeline request failed' };
       }
 
-      if (!response.ok || !payload?.success) {
-        throw new Error(payload?.error || 'AI pipeline request failed');
+      if (!response.ok || !responsePayload?.success) {
+        throw new Error(responsePayload?.error || 'AI pipeline request failed');
       }
 
-      setResponseData(payload);
+      setResponseData(responsePayload);
       setSplitPosition(50);
     } catch (submissionError: unknown) {
       setError(submissionError instanceof Error ? submissionError.message : 'Unable to process the image');
@@ -456,34 +480,73 @@ export default function AiPipelineStep({ embedded = true, onClose }: AiPipelineS
 
               {/* 3. Conditional Parameters (Prompt or Background) */}
               {mode === 'remove-object' ? (
-                <div className="space-y-3 animate-float-subtle">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#ccc3d8]/80 block">AI Object Prompt</span>
-                    <span className="text-[10px] font-semibold text-on-surface-variant">Describe what to erase</span>
+                <div className="space-y-4 animate-float-subtle">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-extrabold uppercase tracking-[0.24em] text-[#ccc3d8]/80 block">AI Object Prompt</span>
+                      <span className="text-[10px] font-semibold text-on-surface-variant">Describe what to erase</span>
+                    </div>
+                    <textarea
+                      value={prompt}
+                      onChange={(event) => setPrompt(event.target.value)}
+                      rows={2.5}
+                      className="w-full rounded-2xl border border-white/10 bg-slate-950/40 focus:bg-slate-950/60 px-4 py-3 text-xs text-white placeholder:text-slate-600 outline-none transition focus:border-primary focus:shadow-[0_0_15px_rgba(210,187,255,0.1)] leading-relaxed resize-none"
+                      placeholder="E.g. Remove the background tourists, Erase the black text label on top, etc."
+                    />
+                    
+                    {/* Prompt Suggestions */}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {SUGGESTED_PROMPTS.map((p) => (
+                        <button
+                          key={p}
+                          onClick={() => setPrompt(p)}
+                          className={`text-[9px] px-2.5 py-1 rounded-lg border font-semibold transition-all ${
+                            prompt === p
+                              ? 'bg-primary/20 border-primary/40 text-primary'
+                              : 'bg-white/[0.02] border-white/5 text-[#ccc3d8]/70 hover:bg-white/5 hover:text-white'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <textarea
-                    value={prompt}
-                    onChange={(event) => setPrompt(event.target.value)}
-                    rows={2.5}
-                    className="w-full rounded-2xl border border-white/10 bg-slate-950/40 focus:bg-slate-950/60 px-4 py-3 text-xs text-white placeholder:text-slate-600 outline-none transition focus:border-primary focus:shadow-[0_0_15px_rgba(210,187,255,0.1)] leading-relaxed resize-none"
-                    placeholder="E.g. Remove the background tourists, Erase the black text label on top, etc."
-                  />
-                  
-                  {/* Prompt Suggestions */}
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {SUGGESTED_PROMPTS.map((p) => (
-                      <button
-                        key={p}
-                        onClick={() => setPrompt(p)}
-                        className={`text-[9px] px-2.5 py-1 rounded-lg border font-semibold transition-all ${
-                          prompt === p
-                            ? 'bg-primary/20 border-primary/40 text-primary'
-                            : 'bg-white/[0.02] border-white/5 text-[#ccc3d8]/70 hover:bg-white/5 hover:text-white'
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    ))}
+
+                  {/* Mask Blur and Guidance Scale sliders */}
+                  <div className="grid gap-4 sm:grid-cols-2 pt-2">
+                    <div className="space-y-2 rounded-2xl border border-white/5 bg-white/[0.01] px-5 py-3 hover:border-white/10 transition-colors font-sans">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">Mask Blur</span>
+                        <span className="text-xs font-extrabold text-primary">{maskBlur}px</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="32"
+                        step="1"
+                        value={maskBlur}
+                        onChange={(e) => setMaskBlur(Number(e.target.value))}
+                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                      <span className="text-[9px] text-on-surface-variant font-medium block">Blending edge softness</span>
+                    </div>
+
+                    <div className="space-y-2 rounded-2xl border border-white/5 bg-white/[0.01] px-5 py-3 hover:border-white/10 transition-colors font-sans">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-white">Guidance Scale</span>
+                        <span className="text-xs font-extrabold text-secondary">{guidanceScale}</span>
+                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max="20"
+                        step="0.5"
+                        value={guidanceScale}
+                        onChange={(e) => setGuidanceScale(Number(e.target.value))}
+                        className="w-full h-1 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-secondary"
+                      />
+                      <span className="text-[9px] text-on-surface-variant font-medium block">How closely to follow prompt</span>
+                    </div>
                   </div>
                 </div>
               ) : (
