@@ -11,6 +11,14 @@ import AuthCardLayout from '@/layouts/AuthCardLayout';
 const SHELL_BASE_URL = (process.env.NEXT_PUBLIC_SHELL_APP_URL || '').replace(/\/+$/, '');
 const CALLBACK_LOCK_PREFIX = 'googleCallbackProcessing:';
 
+function clearGoogleCallbackLocks() {
+  if (typeof window === 'undefined') return;
+
+  Object.keys(window.sessionStorage)
+    .filter((key) => key.startsWith(CALLBACK_LOCK_PREFIX))
+    .forEach((key) => window.sessionStorage.removeItem(key));
+}
+
 export function CallbackPage() {
   const searchParams = useSearchParams();
   const dispatch = useDispatch();
@@ -147,6 +155,7 @@ export function CallbackPage() {
         if (!user) throw new Error('No user information was returned after the callback.');
 
         authStorage.saveSession(resolvedAccessToken, refreshTokenFromQuery, user, 'backend');
+        clearGoogleCallbackLocks();
         dispatch(setSession({ accessToken: resolvedAccessToken, user }));
         notifyShellLogin(resolvedAccessToken, refreshTokenFromQuery, user);
 
