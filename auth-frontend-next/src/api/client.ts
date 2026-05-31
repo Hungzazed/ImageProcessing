@@ -26,8 +26,10 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
   (config) => {
     const { accessToken } = authStorage.loadSession();
+    const headers = config.headers as Record<string, unknown>;
+    const hasExplicitAuthorization = Boolean(headers.Authorization || headers.authorization);
 
-    if (accessToken) {
+    if (accessToken && !hasExplicitAuthorization) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
 

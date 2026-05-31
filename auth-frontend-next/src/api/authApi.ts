@@ -55,23 +55,33 @@ const normalizeUserList = (data: unknown): UserProfile[] => {
     return (data as { items: UserProfile[] }).items;
   }
 
+  if (data && typeof data === 'object' && Array.isArray((data as { value?: unknown[] }).value)) {
+    return (data as { value: UserProfile[] }).value;
+  }
+
+  if (data && typeof data === 'object' && Array.isArray((data as { users?: unknown[] }).users)) {
+    return (data as { users: UserProfile[] }).users;
+  }
+
   return [];
 };
 
 const buildUsername = (name: string, email: string) => {
-  const baseFromName = name
+  const sanitize = (value: string) => value
     .trim()
     .toLowerCase()
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-z0-9]+/g, '_')
     .replace(/^_+|_+$/g, '');
+  const baseFromEmail = sanitize(email.split('@')[0] || '');
+  const baseFromName = sanitize(name);
+  const base = baseFromEmail || baseFromName || 'user';
+  const suffix = String(
+    email.split('').reduce((total, char) => total + char.charCodeAt(0), 0)
+  ).padStart(4, '0');
 
-  if (baseFromName) {
-    return baseFromName;
-  }
-
-  return email.split('@')[0].toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  return `${base}_${suffix}`;
 };
 
 const mergeAuthAndProfile = (authUser: AuthUser | null, profile: UserProfile | null): AuthUser | null => {
@@ -86,6 +96,17 @@ const mergeAuthAndProfile = (authUser: AuthUser | null, profile: UserProfile | n
   };
 };
 
+const normalizeCreatedUser = (data: unknown): UserProfile | null => {
+  if (!data || typeof data !== 'object') return null;
+
+  const value = data as UserProfile & { user?: UserProfile; data?: UserProfile };
+  return value.user ?? value.data ?? value;
+};
+
+const isConflictError = (error: unknown) => {
+  return axios.isAxiosError(error) && error.response?.status === 409;
+};
+
 export const authApi = {
   login: async (payload: LoginPayload) => {
     const { data } = await apiClient.post('/auth/login', payload);
@@ -98,6 +119,21 @@ export const authApi = {
   createUser: async (payload: CreateUserPayload) => {
     const { data } = await userApiClient.post('/users', payload);
     return data;
+  },
+  ensureUserProfile: async (payload: CreateUserPayload) => {
+    const existingProfile = await authApi.getUserByEmail(payload.email);
+    if (existingProfile) return existingProfile;
+
+    try {
+      const createdUser = await authApi.createUser(payload);
+      return normalizeCreatedUser(createdUser);
+    } catch (error) {
+      if (isConflictError(error)) {
+        return authApi.getUserByEmail(payload.email);
+      }
+
+      throw error;
+    }
   },
   getUsers: async (params: { email?: string; phone?: string }) => {
     const { data } = await userApiClient.get('/users', { params });
