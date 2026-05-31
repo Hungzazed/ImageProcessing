@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface UploadStepProps {
-  uploadedFile: any;
+  uploadedFile: { name: string } | null;
   isUploading: boolean;
   uploadProgress: number;
   handleFiles: (files: FileList | null) => void;
@@ -31,7 +31,7 @@ export default function UploadStep({
           const input = document.createElement('input');
           input.type = 'file';
           input.accept = 'image/png, image/jpeg, image/webp';
-          input.onchange = (e: any) => handleFiles(e.target.files);
+          input.onchange = (event) => handleFiles((event.target as HTMLInputElement | null)?.files || null);
           input.click();
         }}
         onDragOver={(e) => {

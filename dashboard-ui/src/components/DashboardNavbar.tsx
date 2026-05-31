@@ -3,7 +3,7 @@ import React from 'react';
 interface DashboardNavbarProps {
   step: 1 | 2 | 3 | 4 | 5 | 6;
   setStep: (step: 1 | 2 | 3 | 4 | 5 | 6) => void;
-  uploadedFile: any;
+  uploadedFile: { name: string } | null;
   jobId: string;
   onNewPipeline: () => void;
   onOpenAiPipeline: () => void;

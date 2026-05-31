@@ -34,15 +34,6 @@ export async function POST(req: NextRequest) {
       ContentType: file.type,
     });
 
-    // Debug S3 upload parameters and credentials safely
-    let accessKeyId = 'Unknown';
-    try {
-      const creds = await s3Client.config.credentials();
-      accessKeyId = creds?.accessKeyId || 'None';
-    } catch (e: any) {
-      console.warn('Error reading AWS credentials:', e.message);
-    }
-
     await s3Client.send(command);
 
     return NextResponse.json({
@@ -50,8 +41,11 @@ export async function POST(req: NextRequest) {
       bucket: bucketName,
       key: key,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error uploading file to S3:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Failed to upload file' },
+      { status: 500 }
+    );
   }
 }

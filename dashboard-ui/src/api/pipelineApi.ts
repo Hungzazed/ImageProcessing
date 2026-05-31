@@ -39,14 +39,18 @@ export type SubscriptionPayload = {
   isActive: boolean;
 };
 
+type ApiError = {
+  message?: string;
+};
+
 export const pipelineApi = {
   // Auth endpoints (Public)
-  login: async (payload: any) => {
+  login: async (payload: Record<string, unknown>) => {
     const { data } = await apiClient.post('/auth/login', payload);
     return data;
   },
   
-  register: async (payload: any) => {
+  register: async (payload: Record<string, unknown>) => {
     const { data } = await apiClient.post('/auth/register', payload);
     return data;
   },
@@ -81,8 +85,9 @@ export const pipelineApi = {
       const url = `${process.env.NEXT_PUBLIC_NOTIFICATION_API_URL || 'http://localhost:4000'}/users/${userId}/subscriptions`;
       const { data } = await axios.get(url);
       return data;
-    } catch (err: any) {
-      console.warn('Notification API getSubscriptions failed, falling back to local storage:', err.message);
+    } catch (err: unknown) {
+      const error = err as ApiError;
+      console.warn('Notification API getSubscriptions failed, falling back to local storage:', error.message);
       return JSON.parse(localStorage.getItem(`subs_${userId}`) || '[]');
     }
   },
@@ -92,10 +97,11 @@ export const pipelineApi = {
       const url = `${process.env.NEXT_PUBLIC_NOTIFICATION_API_URL || 'http://localhost:4000'}/users/${userId}/subscriptions`;
       const { data } = await axios.post(url, payload);
       return data;
-    } catch (err: any) {
-      console.warn('Notification API saveSubscription failed, falling back to local storage:', err.message);
-      const current = JSON.parse(localStorage.getItem(`subs_${userId}`) || '[]');
-      const index = current.findIndex((s: any) => s.id === payload.id);
+    } catch (err: unknown) {
+      const error = err as ApiError;
+      console.warn('Notification API saveSubscription failed, falling back to local storage:', error.message);
+      const current = JSON.parse(localStorage.getItem(`subs_${userId}`) || '[]') as SubscriptionPayload[];
+      const index = current.findIndex((item) => item.id === payload.id);
       if (index >= 0) {
         current[index] = payload;
       } else {
