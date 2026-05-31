@@ -16,11 +16,6 @@ const app = express();
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
-const frontendUrl = process.env.FRONTEND_URL;
-const frontendUrls = process.env.FRONTEND_URLS
-    ? process.env.FRONTEND_URLS.split(',').map((url) => url.trim()).filter(Boolean)
-    : [];
-const allowedOrigins = [...new Set([frontendUrl, ...frontendUrls].filter(Boolean))];
 const port = process.env.PORT || 3001;
 
 const parseOrigin = (value) => {
@@ -32,6 +27,12 @@ const parseOrigin = (value) => {
         return null;
     }
 };
+
+const frontendUrl = parseOrigin(process.env.FRONTEND_URL);
+const frontendUrls = process.env.FRONTEND_URLS
+    ? process.env.FRONTEND_URLS.split(',').map((url) => parseOrigin(url.trim())).filter(Boolean)
+    : [];
+const allowedOrigins = [...new Set([frontendUrl, ...frontendUrls].filter(Boolean))];
 
 const isLocalhostOrigin = (origin) => {
     const parsedOrigin = parseOrigin(origin);

@@ -14,11 +14,6 @@ const decodeBase64Url = (value) => {
   return Buffer.from(padded, 'base64').toString('utf8');
 };
 
-const primaryFrontendUrl = process.env.FRONTEND_URL;
-const extraFrontendUrls = process.env.FRONTEND_URLS
-  ? process.env.FRONTEND_URLS.split(',').map((url) => url.trim()).filter(Boolean)
-  : [];
-const allowedFrontendOrigins = new Set([primaryFrontendUrl, ...extraFrontendUrls].filter(Boolean));
 const defaultFrontendUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3005';
 const defaultBackendUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
 
@@ -31,6 +26,12 @@ const parseUrlOrigin = (value) => {
     return null;
   }
 };
+
+const primaryFrontendUrl = parseUrlOrigin(process.env.FRONTEND_URL);
+const extraFrontendUrls = process.env.FRONTEND_URLS
+  ? process.env.FRONTEND_URLS.split(',').map((url) => parseUrlOrigin(url.trim())).filter(Boolean)
+  : [];
+const allowedFrontendOrigins = new Set([primaryFrontendUrl, ...extraFrontendUrls].filter(Boolean));
 
 const isLocalhostOrigin = (origin) => {
   const parsedOrigin = parseUrlOrigin(origin);
