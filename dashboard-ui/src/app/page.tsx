@@ -166,7 +166,7 @@ export default function DashboardPage() {
 
   const fetchS3Head = async (url: string) => {
     try {
-      const response = await fetch(`/api/fetch-head?url=${encodeURIComponent(url)}`);
+      const response = await fetch(`/api/fetch-head?url=${encodeURIComponent(url)}&t=${Date.now()}`);
       const payload = await response.json();
 
       if (!response.ok || !payload?.success) {
@@ -229,7 +229,7 @@ export default function DashboardPage() {
     if (!activeJobId) return;
 
     try {
-      const response = await fetch(`/api/job-assets?jobId=${encodeURIComponent(activeJobId)}`);
+      const response = await fetch(`/api/job-assets?jobId=${encodeURIComponent(activeJobId)}&t=${Date.now()}`);
       const payload = await response.json();
 
       if (!response.ok || !payload.success) {
@@ -237,7 +237,15 @@ export default function DashboardPage() {
       }
 
       const assets: JobAsset[] = Array.isArray(payload.items) ? payload.items : [];
-      setJobAssets(assets);
+      setJobAssets((prev) => {
+        return assets.map((newAsset) => {
+          const existing = prev.find((p) => p.stage === newAsset.stage);
+          return {
+            ...newAsset,
+            size: newAsset.size || existing?.size || 0,
+          };
+        });
+      });
 
       const mappedStages = assets.reduce<StageImageUrls>((acc, item) => {
         acc[item.stage] = item.url;
@@ -688,7 +696,7 @@ export default function DashboardPage() {
 
     (async () => {
       try {
-        const proxyRes = await fetch(`/api/fetch-head?url=${encodeURIComponent(processedImageUrl)}`);
+        const proxyRes = await fetch(`/api/fetch-head?url=${encodeURIComponent(processedImageUrl)}&t=${Date.now()}`);
         const payload = await proxyRes.json();
         if (!canceled && payload?.success && payload.length) {
           const size = payload.length as number;
