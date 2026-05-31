@@ -1,0 +1,30 @@
+
+> shell-app@0.1.0 dev
+> next dev -p 3000
+
+   ▲ Next.js 15.1.7
+   - Local:        http://localhost:3000
+   - Network:      http://26.161.131.249:3000
+   - Environments: .env
+
+ ✓ Starting...
+ ✓ Ready in 1586ms
+ ○ Compiling /src/middleware ...
+ ✓ Compiled /src/middleware in 2.1s (699 modules)
+ GET /_next/static/webpack/18116067863fdbeb.webpack.hot-update.json 404 in 2323ms
+ GET /_next/static/webpack/18116067863fdbeb.webpack.hot-update.json 404 in 2329ms
+ GET /_next/static/webpack/18116067863fdbeb.webpack.hot-update.json 404 in 2324ms
+ ○ Compiling /dashboard ...
+ ✓ Compiled /dashboard in 1570ms (1421 modules)
+ GET / 200 in 1441ms
+ GET /auth/login?redirect=%2Fdashboard 200 in 1611ms
+ GET /_next/static/webpack/18116067863fdbeb.webpack.hot-update.json 404 in 1685ms
+ GET /_next/static/webpack/18116067863fdbeb.webpack.hot-update.json 404 in 1596ms
+ GET /_next/static/webpack/18116067863fdbeb.webpack.hot-update.json 404 in 1599ms
+ GET /dashboard 200 in 1641ms
+ GET / 200 in 46ms
+ GET /dashboard 200 in 52ms
+ GET /auth/login?redirect=%2Fdashboard 200 in 54ms
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 22ms
+ GET / 200 in 10ms
+ GET / 200 in 13ms

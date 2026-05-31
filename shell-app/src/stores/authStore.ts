@@ -5,6 +5,15 @@ import { AuthState, User } from '../types';
 const COOKIE_ACCESS_TOKEN = 'auth_access_token';
 const COOKIE_REFRESH_TOKEN = 'auth_refresh_token';
 const COOKIE_USER = 'auth_user';
+const GOOGLE_CALLBACK_LOCK_PREFIX = 'googleCallbackProcessing:';
+
+function clearGoogleCallbackLocks() {
+  if (typeof window === 'undefined') return;
+
+  Object.keys(window.sessionStorage)
+    .filter((key) => key.startsWith(GOOGLE_CALLBACK_LOCK_PREFIX))
+    .forEach((key) => window.sessionStorage.removeItem(key));
+}
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   accessToken: null,
@@ -78,6 +87,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       localStorage.removeItem('auth_user');            // shell-app
       localStorage.removeItem('authUser');             // auth-frontend-next / dashboard-ui
       localStorage.removeItem('authProvider');         // auth-frontend-next
+      clearGoogleCallbackLocks();
     }
   },
 
