@@ -44,10 +44,19 @@ export function useAppSyncSubscription({
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const onUpdateRef = useRef(onUpdate);
+  const hasLoggedSocketErrorRef = useRef(false);
   const connected = shouldSimulate ? true : isSocketConnected;
 
   useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
+
+  useEffect(() => {
     if (shouldSimulate) {
+      setIsSocketConnected(false);
+      setError(null);
+      hasLoggedSocketErrorRef.current = false;
       return;
     }
 
@@ -69,12 +78,15 @@ export function useAppSyncSubscription({
         'x-api-key': apiKey,
       };
       
-      const headerBase64 = btoa(JSON.stringify(headerObj));
-      const payloadBase64 = btoa(JSON.stringify({}));
-      const fullUrl = `${realtimeUrl}?header=${headerBase64}&payload=${payloadBase64}`;
+      const params = new URLSearchParams({
+        header: btoa(JSON.stringify(headerObj)),
+        payload: btoa(JSON.stringify({})),
+      });
+      const fullUrl = `${realtimeUrl}?${params.toString()}`;
 
       const socket = new WebSocket(fullUrl, ['graphql-ws']);
       socketRef.current = socket;
+      setError(null);
 
       socket.onopen = () => {
         // Send connection_init
@@ -127,7 +139,7 @@ export function useAppSyncSubscription({
           } else if (data.type === 'data') {
             const progressUpdate = data.payload?.data?.onProgressUpdate;
             if (progressUpdate) {
-              onUpdate({
+              onUpdateRef.current({
                 ...progressUpdate,
                 metadata: progressUpdate.metadata
                   ? JSON.parse(progressUpdate.metadata)
@@ -143,7 +155,10 @@ export function useAppSyncSubscription({
       };
 
       socket.onerror = (e) => {
-        console.error('WebSocket error', e);
+        if (!hasLoggedSocketErrorRef.current) {
+          console.warn('AppSync realtime WebSocket failed. Falling back to local simulation when available.', e);
+          hasLoggedSocketErrorRef.current = true;
+        }
         setError('Connection failed. Switching to Local Simulation mode.');
         setIsSocketConnected(false);
       };
@@ -153,8 +168,15 @@ export function useAppSyncSubscription({
       };
 
       return () => {
+        socket.onopen = null;
+        socket.onmessage = null;
+        socket.onerror = null;
+        socket.onclose = null;
         if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
           socket.close();
+        }
+        if (socketRef.current === socket) {
+          socketRef.current = null;
         }
       };
     } catch (err: unknown) {
@@ -163,7 +185,7 @@ export function useAppSyncSubscription({
         setIsSocketConnected(false);
       });
     }
-  }, [endpoint, apiKey, userId, enabled, onUpdate, shouldSimulate]);
+  }, [endpoint, apiKey, userId, enabled, shouldSimulate]);
 
   // Utility to simulate SQS pipeline events
   const runSimulation = (
