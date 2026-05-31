@@ -25,13 +25,16 @@ export async function GET(req: Request) {
     if (res.body) {
       try {
         await res.body.cancel();
-      } catch (err) {
+      } catch {
         // Ignore stream cancellation error
       }
     }
 
     return NextResponse.json({ success: true, length: length ? parseInt(length, 10) : null, type });
-  } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json(
+      { success: false, error: err instanceof Error ? err.message : 'Failed to fetch HEAD metadata' },
+      { status: 500 }
+    );
   }
 }

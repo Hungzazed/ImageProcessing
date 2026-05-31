@@ -281,7 +281,7 @@ export default function MonitorStep({
                   <div>
                     <span className="text-xs font-bold text-white block">Watermark Brand Signature</span>
                     <span className="text-[10px] text-slate-400 block mt-0.5">
-                      Text: "{watermarkText}" ({watermarkPosition})
+                      Text: &quot;{watermarkText}&quot; ({watermarkPosition})
                     </span>
                   </div>
                 </div>

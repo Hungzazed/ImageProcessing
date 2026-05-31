@@ -7,7 +7,22 @@ export type ProgressEvent = {
   eventType: string;
   status: string;
   timestamp: string;
-  metadata?: any;
+  metadata?: ProgressMetadata;
+};
+
+export type ProgressMetadata = {
+  size?: number;
+  width?: number;
+  height?: number;
+  filter?: string;
+  watermark?: string;
+  format?: string;
+  processingTime?: string | number;
+  duration?: string | number;
+  elapsedMs?: string | number;
+  url?: string;
+  s3Key?: string;
+  [key: string]: unknown;
 };
 
 type AppSyncConfig = {
@@ -25,14 +40,14 @@ export function useAppSyncSubscription({
   onUpdate,
   enabled = false,
 }: AppSyncConfig) {
-  const [connected, setConnected] = useState(false);
+  const shouldSimulate = !enabled || !endpoint || !apiKey;
+  const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<WebSocket | null>(null);
+  const connected = shouldSimulate ? true : isSocketConnected;
 
   useEffect(() => {
-    if (!enabled || !endpoint || !apiKey) {
-      // Fallback: Simulation mode if not fully configured
-      setConnected(true);
+    if (shouldSimulate) {
       return;
     }
 
@@ -71,7 +86,7 @@ export function useAppSyncSubscription({
           const data = JSON.parse(messageEvent.data);
           
           if (data.type === 'connection_ack') {
-            setConnected(true);
+            setIsSocketConnected(true);
             
             // Subscribe to onProgressUpdate
             const query = `
@@ -130,11 +145,11 @@ export function useAppSyncSubscription({
       socket.onerror = (e) => {
         console.error('WebSocket error', e);
         setError('Connection failed. Switching to Local Simulation mode.');
-        setConnected(true); // Treat as connected so simulation works
+        setIsSocketConnected(false);
       };
 
       socket.onclose = () => {
-        setConnected(false);
+        setIsSocketConnected(false);
       };
 
       return () => {
@@ -142,11 +157,13 @@ export function useAppSyncSubscription({
           socket.close();
         }
       };
-    } catch (err: any) {
-      setError(err?.message || 'Failed to setup real-time listener');
-      setConnected(true); // fallback
+    } catch (err: unknown) {
+      queueMicrotask(() => {
+        setError(err instanceof Error ? err.message : 'Failed to setup real-time listener');
+        setIsSocketConnected(false);
+      });
     }
-  }, [endpoint, apiKey, userId, enabled]);
+  }, [endpoint, apiKey, userId, enabled, onUpdate, shouldSimulate]);
 
   // Utility to simulate SQS pipeline events
   const runSimulation = (
@@ -164,10 +181,10 @@ export function useAppSyncSubscription({
     const stages = ['startPipeline', ...activeStages, 'compress'];
     let delay = 1000;
 
-    stages.forEach((stage, index) => {
+    stages.forEach((stage) => {
       setTimeout(() => {
         let eventType = 'image.processing.started';
-        let metadata: any = { size: 1048576, width: 1920, height: 1080 };
+        let metadata: ProgressMetadata = { size: 1048576, width: 1920, height: 1080 };
 
         if (stage === 'resize') {
           eventType = 'image.resized';
