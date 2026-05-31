@@ -46,7 +46,7 @@ async function handleProxyRequest(request: NextRequest) {
 		const contentType = request.headers.get('content-type') || '';
 
 		const headers: Record<string, string> = {};
-		if (shouldForwardAuthorization(targetUrl, authHeader)) {
+		if (authHeader && shouldForwardAuthorization(targetUrl, authHeader)) {
 			headers['Authorization'] = authHeader;
 		}
 		if (contentType) {

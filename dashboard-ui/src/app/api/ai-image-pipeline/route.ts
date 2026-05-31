@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     const authHeader = request.headers.get('authorization');
     const headers: Record<string, string> = {};
-    if (shouldForwardAuthorization(baseUrl, authHeader)) {
+    if (authHeader && shouldForwardAuthorization(baseUrl, authHeader)) {
       headers['Authorization'] = authHeader;
     }
 

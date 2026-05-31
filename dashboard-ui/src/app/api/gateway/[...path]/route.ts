@@ -50,7 +50,7 @@ async function handleProxyRequest(request: NextRequest, params: { path: string[]
 
     // Prepare headers to forward
     const headers: Record<string, string> = {};
-    if (shouldForwardAuthorization(targetUrl, authHeader)) {
+    if (authHeader && shouldForwardAuthorization(targetUrl, authHeader)) {
       headers['Authorization'] = authHeader;
     }
     if (contentType) {
