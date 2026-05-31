@@ -19,6 +19,41 @@ const extraFrontendUrls = process.env.FRONTEND_URLS
   ? process.env.FRONTEND_URLS.split(',').map((url) => url.trim()).filter(Boolean)
   : [];
 const allowedFrontendOrigins = new Set([primaryFrontendUrl, ...extraFrontendUrls].filter(Boolean));
+const defaultFrontendUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3005';
+const defaultBackendUrl = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3001';
+
+const parseUrlOrigin = (value) => {
+  if (!value || typeof value !== 'string') return null;
+
+  try {
+    return new URL(value).origin;
+  } catch {
+    return null;
+  }
+};
+
+const isLocalhostOrigin = (origin) => {
+  const parsedOrigin = parseUrlOrigin(origin);
+  if (!parsedOrigin) return false;
+
+  const { hostname } = new URL(parsedOrigin);
+  return hostname === 'localhost' || hostname === '127.0.0.1';
+};
+
+const isVercelPreviewOrigin = (origin) => {
+  const parsedOrigin = parseUrlOrigin(origin);
+  if (!parsedOrigin) return false;
+
+  const { protocol, hostname } = new URL(parsedOrigin);
+  return protocol === 'https:' && hostname.endsWith('.vercel.app');
+};
+
+const isAllowedFrontendOrigin = (origin) => {
+  const parsedOrigin = parseUrlOrigin(origin);
+  if (!parsedOrigin) return false;
+
+  return allowedFrontendOrigins.has(parsedOrigin) || isLocalhostOrigin(parsedOrigin) || isVercelPreviewOrigin(parsedOrigin);
+};
 
 const resolveBackendBaseUrl = (req) => {
   const forwardedProto = req.headers['x-forwarded-proto'];
@@ -29,7 +64,7 @@ const resolveBackendBaseUrl = (req) => {
     return `${protocol}://${host}`;
   }
 
-  return process.env.BACKEND_URL || 'http://localhost:3001';
+  return process.env.BACKEND_URL || defaultBackendUrl;
 };
 
 const resolveGoogleCallbackUrl = (req) => {
@@ -55,20 +90,37 @@ const resolveFrontendUrl = (req) => {
     }
   })();
 
-  if (stateOrigin && allowedFrontendOrigins.has(stateOrigin)) {
-    return stateOrigin;
+  if (stateOrigin && isAllowedFrontendOrigin(stateOrigin)) {
+    return parseUrlOrigin(stateOrigin);
   }
 
-  if (requestedOrigin && allowedFrontendOrigins.has(requestedOrigin)) {
-    return requestedOrigin;
+  if (requestedOrigin && isAllowedFrontendOrigin(String(requestedOrigin))) {
+    return parseUrlOrigin(String(requestedOrigin));
   }
 
-  if (requestedOrigin && (requestedOrigin.includes('localhost') || requestedOrigin.includes('127.0.0.1'))) {
-    console.log(`[OAUTH] Fallback: Using requested origin (localhost dev): ${requestedOrigin}`);
-    return requestedOrigin;
+  return primaryFrontendUrl || extraFrontendUrls[0] || defaultFrontendUrl;
+};
+
+const resolveShellOrigin = (req) => {
+  const queryShellOrigin = req.query.shellOrigin;
+  const stateShellOrigin = (() => {
+    if (!req.query.state) return null;
+
+    try {
+      const decodedState = JSON.parse(decodeBase64Url(String(req.query.state)));
+      return decodedState && typeof decodedState.shellOrigin === 'string' ? decodedState.shellOrigin : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const shellOrigin = stateShellOrigin || (typeof queryShellOrigin === 'string' ? queryShellOrigin : '');
+
+  if (shellOrigin && isAllowedFrontendOrigin(shellOrigin)) {
+    return parseUrlOrigin(shellOrigin);
   }
 
-  return primaryFrontendUrl || extraFrontendUrls[0] || 'http://localhost:3001';
+  return null;
 };
 
 router.post('/register', register);
@@ -109,8 +161,9 @@ router.get(
       }
 
       const frontendUrl = resolveFrontendUrl(req);
+      const shellOrigin = resolveShellOrigin(req);
       const callbackURL = resolveGoogleCallbackUrl(req);
-      const state = encodeBase64Url(JSON.stringify({ frontendUrl }));
+      const state = encodeBase64Url(JSON.stringify({ frontendUrl, shellOrigin }));
 
       return passport.authenticate('google', {
         callbackURL,
@@ -139,6 +192,7 @@ router.get(
 
       req.user = user;
       req.oauthFrontendUrl = frontendUrl;
+      req.oauthShellOrigin = resolveShellOrigin(req);
       return next();
     })(req, res, next);
   },

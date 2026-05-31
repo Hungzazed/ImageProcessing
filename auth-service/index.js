@@ -21,6 +21,40 @@ const frontendUrls = process.env.FRONTEND_URLS
     ? process.env.FRONTEND_URLS.split(',').map((url) => url.trim()).filter(Boolean)
     : [];
 const allowedOrigins = [...new Set([frontendUrl, ...frontendUrls].filter(Boolean))];
+const port = process.env.PORT || 3001;
+
+const parseOrigin = (value) => {
+    if (!value || typeof value !== 'string') return null;
+
+    try {
+        return new URL(value).origin;
+    } catch {
+        return null;
+    }
+};
+
+const isLocalhostOrigin = (origin) => {
+    const parsedOrigin = parseOrigin(origin);
+    if (!parsedOrigin) return false;
+
+    const { hostname } = new URL(parsedOrigin);
+    return hostname === 'localhost' || hostname === '127.0.0.1';
+};
+
+const isVercelPreviewOrigin = (origin) => {
+    const parsedOrigin = parseOrigin(origin);
+    if (!parsedOrigin) return false;
+
+    const { protocol, hostname } = new URL(parsedOrigin);
+    return protocol === 'https:' && hostname.endsWith('.vercel.app');
+};
+
+const isAllowedOrigin = (origin) => {
+    const parsedOrigin = parseOrigin(origin);
+    if (!parsedOrigin) return false;
+
+    return allowedOrigins.includes(parsedOrigin) || isLocalhostOrigin(parsedOrigin) || isVercelPreviewOrigin(parsedOrigin);
+};
 
 app.use(cookieParser());
 
@@ -29,7 +63,7 @@ app.use(cors({
         // Allow non-browser clients (curl/Postman/server-to-server) without Origin header.
         if (!origin) return callback(null, true);
 
-        if (allowedOrigins.includes(origin)) {
+        if (isAllowedOrigin(origin)) {
             return callback(null, true);
         }
 
@@ -65,7 +99,7 @@ const startServer = async () => {
         console.error('Failed to reconcile stale pending emails', error && (error.message || error));
     }
 
-    app.listen(3001, () => console.log("Server running on port 3001"));
+    app.listen(port, () => console.log(`Server running on port ${port}`));
 };
 
 startServer();

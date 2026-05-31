@@ -10,6 +10,7 @@ import AuthCardLayout from '@/layouts/AuthCardLayout';
 import { getShellDashboardUrl } from '@/utils/shellUrl';
 
 const CALLBACK_LOCK_PREFIX = 'googleCallbackProcessing:';
+const processedCallbackTokens = new Set<string>();
 
 function clearGoogleCallbackLocks() {
   if (typeof window === 'undefined') return;
@@ -102,14 +103,14 @@ export function CallbackPage() {
           throw new Error('Missing Google callback tokens. Verify redirect URLs and OAuth client configuration.');
         }
 
-        const callbackLockKey = `${CALLBACK_LOCK_PREFIX}${accessTokenFromQuery.slice(0, 24)}`;
-        if (sessionStorage.getItem(callbackLockKey)) {
+        const callbackLockKey = accessTokenFromQuery.slice(0, 24);
+        if (processedCallbackTokens.has(callbackLockKey)) {
           if (alive) {
             setStatus('Google sign-in successful. Redirecting to the dashboard...');
           }
           return;
         }
-        sessionStorage.setItem(callbackLockKey, String(Date.now()));
+        processedCallbackTokens.add(callbackLockKey);
 
         let decodedUserFromQuery: AuthUser | null = null;
         if (encodedUserFromQuery) {
@@ -172,7 +173,7 @@ export function CallbackPage() {
           (typeof window !== 'undefined' ? new URLSearchParams(window.location.hash.replace(/^#/, '')).get('access_token') : '') ||
           '';
         if (accessTokenFromQuery) {
-          sessionStorage.removeItem(`${CALLBACK_LOCK_PREFIX}${accessTokenFromQuery.slice(0, 24)}`);
+          processedCallbackTokens.delete(accessTokenFromQuery.slice(0, 24));
         }
 
         if (alive) {

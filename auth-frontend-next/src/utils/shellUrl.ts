@@ -16,6 +16,14 @@ const isBrowserOnLocalhost = () => {
 };
 
 export function getShellBaseUrl() {
+  if (typeof window !== 'undefined') {
+    const shellOriginFromCallback = new URLSearchParams(window.location.search).get('shellOrigin');
+
+    if (shellOriginFromCallback) {
+      return stripTrailingSlash(shellOriginFromCallback);
+    }
+  }
+
   const configuredUrl = stripTrailingSlash(process.env.NEXT_PUBLIC_SHELL_APP_URL || '');
 
   if (configuredUrl && (!isLocalhostUrl(configuredUrl) || isBrowserOnLocalhost())) {

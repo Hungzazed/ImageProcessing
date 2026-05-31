@@ -11,7 +11,7 @@ const { getAccessTokenFromRequest, getRefreshTokenFromRequest, verifyAccessToken
 
 const OTP_EXPIRES_IN_MINUTES = 1;
 const RESET_TOKEN_EXPIRES_IN_MINUTES = 30;
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || (process.env.NODE_ENV === 'production' ? '' : 'http://localhost:3005');
 
 const generateOtp = () => String(randomInt(100000, 1000000));
 const generateResetToken = () => randomBytes(32).toString('hex');
@@ -344,6 +344,7 @@ exports.googleCallback = async (req, res) => {
     try {
         const user = req.user;
         const callbackFrontendUrl = req.oauthFrontendUrl || FRONTEND_URL;
+        const shellOrigin = req.oauthShellOrigin || '';
 
         const accessToken = jwt.sign(
             { id: user._id },
@@ -369,7 +370,17 @@ exports.googleCallback = async (req, res) => {
         });
 
         const encodedUser = encodeBase64Url(userInfo);
-        const redirectUrl = `${callbackFrontendUrl}/callback?accessToken=${encodeURIComponent(accessToken)}&refreshToken=${encodeURIComponent(refreshToken)}&user=${encodeURIComponent(encodedUser)}`;
+        const callbackParams = new URLSearchParams({
+            accessToken,
+            refreshToken,
+            user: encodedUser,
+        });
+
+        if (shellOrigin) {
+            callbackParams.set('shellOrigin', shellOrigin);
+        }
+
+        const redirectUrl = `${callbackFrontendUrl}/callback?${callbackParams.toString()}`;
 
         res.redirect(redirectUrl);
     } catch (error) {

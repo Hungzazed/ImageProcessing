@@ -1,6 +1,7 @@
 import axios from 'axios';
 import type { AuthUser } from '@/store/authStorage';
 import apiClient, { API_BASE_URL } from './client';
+import { getShellBaseUrl } from '@/utils/shellUrl';
 
 const stripTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
@@ -201,6 +202,17 @@ export const authApi = {
       throw new Error('Missing NEXT_PUBLIC_GOOGLE_AUTH_API_URL or NEXT_PUBLIC_AUTH_API_URL');
     }
 
-    return `${configuredBase}/auth/google`;
+    const googleUrl = new URL(`${configuredBase}/auth/google`);
+
+    if (typeof window !== 'undefined') {
+      googleUrl.searchParams.set('origin', window.location.origin);
+    }
+
+    const shellBaseUrl = getShellBaseUrl();
+    if (shellBaseUrl) {
+      googleUrl.searchParams.set('shellOrigin', shellBaseUrl);
+    }
+
+    return googleUrl.toString();
   },
 };
