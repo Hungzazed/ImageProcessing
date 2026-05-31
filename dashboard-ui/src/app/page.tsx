@@ -331,7 +331,7 @@ export default function DashboardPage() {
 
       // Record start timestamp for duration calculation
       setNodeStatus((prev) => {
-        const nextState: 'processing' | 'failed' | 'completed' = eventType === 'image.processing.started' ? 'processing' : status === 'FAILED' ? 'failed' : 'completed';
+        const nextState: 'processing' | 'failed' | 'completed' = eventType === 'image.processing.started' ? 'completed' : status === 'FAILED' ? 'failed' : 'completed';
         const next: { state: string; duration?: number; size?: string } = {
           state: nextState,
           ...(metadata?.size ? { size: formatBytes(metadata.size) } : {}),
@@ -586,17 +586,6 @@ export default function DashboardPage() {
       setJobId(actualJobId);
       setImageId(actualImageId);
       void refreshJobAssets(actualJobId);
-
-      if (backendProcessingMs || fallbackProcessingMs) {
-        setNodeStatus((prev) => ({
-          ...prev,
-          compress: {
-            ...(prev.compress || { state: 'completed' }),
-            state: 'completed',
-            duration: backendProcessingMs ?? fallbackProcessingMs,
-          },
-        }));
-      }
 
       setLogs((prev) => [
         ...prev,

@@ -1,8 +1,9 @@
 const { SESClient, SendEmailCommand } = require('@aws-sdk/client-ses');
-const axios = require('axios');
+// axios dependency removed to use native fetch in Node.js 20
 const crypto = require('crypto');
 const logger = require('../../common/logger');
 const { getSubscriptionsForUser, saveNotificationHistory } = require('../../common/dynamo-helper');
+const { getEmailHtml } = require('./email-template');
 
 // Initialize SES Client
 const ses = new SESClient({});
@@ -142,17 +143,23 @@ async function publishProgressToAppSync(eventPayload) {
   };
 
   logger.info('Publishing to AppSync', { variables });
-  await axios.post(
+  const response = await fetch(
     endpoint,
-    { query, variables },
     {
+      method: 'POST',
       headers: {
         'x-api-key': apiKey,
         'Content-Type': 'application/json'
       },
-      timeout: 5000
+      body: JSON.stringify({ query, variables }),
+      signal: AbortSignal.timeout(5000)
     }
   );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+  }
 }
 
 /**
@@ -161,13 +168,20 @@ async function publishProgressToAppSync(eventPayload) {
 async function sendWebhookWithRetry(destination, payload, historyEntry, attempt = 1) {
   const retryLimit = parseInt(process.env.WEBHOOK_RETRY_LIMIT || '3', 10);
   try {
-    await axios.post(destination, payload, {
+    const response = await fetch(destination, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Content-Type-Options': 'nosniff'
       },
-      timeout: 5000
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(5000)
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+    }
 
     historyEntry.status = 'success';
     historyEntry.retryCount = attempt;
@@ -199,8 +213,13 @@ async function sendEmailViaSES(destination, eventType, eventData, historyEntry) 
     throw new Error('EMAIL_FROM environment variable is not defined.');
   }
 
-  const subject = `Notification: ${eventType}`;
-  const text = `Image processing update: ${eventType}\nJob ID: ${eventData.jobId}\nImage ID: ${eventData.imageId}\nDetails: ${JSON.stringify(eventData.metadata || {})}`;
+  const isSuccess = eventType === 'image.completed';
+  const displaySubject = isSuccess 
+    ? `[Pipeline Studio] Xử lý ảnh thành công (Job: ${eventData.jobId.slice(0, 8)})` 
+    : `[Pipeline Studio] Xử lý ảnh thất bại (Job: ${eventData.jobId.slice(0, 8)})`;
+
+  const textBody = `Image processing update: ${eventType}\nJob ID: ${eventData.jobId}\nImage ID: ${eventData.imageId}\nDetails: ${JSON.stringify(eventData.metadata || {})}`;
+  const htmlBody = getEmailHtml(eventType, eventData);
 
   const command = new SendEmailCommand({
     Destination: {
@@ -208,9 +227,19 @@ async function sendEmailViaSES(destination, eventType, eventData, historyEntry) 
     },
     Message: {
       Body: {
-        Text: { Data: text },
+        Text: { 
+          Data: textBody,
+          Charset: 'UTF-8'
+        },
+        Html: {
+          Data: htmlBody,
+          Charset: 'UTF-8'
+        }
       },
-      Subject: { Data: subject },
+      Subject: { 
+        Data: displaySubject,
+        Charset: 'UTF-8'
+      },
     },
     Source: sourceEmail,
   });
