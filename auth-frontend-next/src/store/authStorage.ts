@@ -26,6 +26,7 @@ const LEGACY_AUTH_REFRESH_TOKEN_KEY = 'auth_refresh_token';
 const SHARED_ACCESS_TOKEN_COOKIE = 'auth_access_token';
 const SHARED_REFRESH_TOKEN_COOKIE = 'auth_refresh_token';
 const SHARED_USER_COOKIE = 'auth_user';
+const GOOGLE_CALLBACK_LOCK_PREFIX = 'googleCallbackProcessing:';
 
 function setCookie(name: string, value: string, maxAgeSeconds = 60 * 60 * 24 * 30) {
   if (typeof document === 'undefined') return;
@@ -44,6 +45,14 @@ function clearSharedCookies() {
   clearCookie('authToken');
   clearCookie(LEGACY_AUTH_REFRESH_TOKEN_KEY);
   clearCookie(LEGACY_AUTH_USER_KEY);
+}
+
+function clearGoogleCallbackLocks() {
+  if (typeof window === 'undefined') return;
+
+  Object.keys(window.sessionStorage)
+    .filter((key) => key.startsWith(GOOGLE_CALLBACK_LOCK_PREFIX))
+    .forEach((key) => window.sessionStorage.removeItem(key));
 }
 
 export const authStorage = {
@@ -107,6 +116,7 @@ export const authStorage = {
     window.localStorage.removeItem('authToken');
     window.localStorage.removeItem(LEGACY_AUTH_REFRESH_TOKEN_KEY); // 'auth_refresh_token'
     window.localStorage.removeItem(LEGACY_AUTH_USER_KEY);          // 'authUser'
+    clearGoogleCallbackLocks();
 
     clearSharedCookies();
   },
